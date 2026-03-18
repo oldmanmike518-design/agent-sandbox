@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: agent-sandbox
+    env: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: STARTING_CREDITS
+        value: "1000"
+      - key: MESSAGE_LIMIT_PER_HOUR
+        value: "100"
+      - key: MAX_MESSAGE_CHARS
+        value: "2000"
+      - key: OWNER_MESSAGE
+        value: "Built in Cairo. Open to the universe."
+      - key: WALLET_ETH
+        sync: false
+      - key: WALLET_BTC
+        sync: false
+      - key: WALLET_XRP
+        sync: false
+      - key: WALLET_XLM
+        sync: false

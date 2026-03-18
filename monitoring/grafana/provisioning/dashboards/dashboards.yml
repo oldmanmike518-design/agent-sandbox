@@ -1,0 +1,11 @@
+apiVersion: 1
+
+dashboards:
+  - name: AgentSandbox
+    orgId: 1
+    folder: "Agent Sandbox"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

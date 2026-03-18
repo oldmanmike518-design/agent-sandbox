@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# Env
+.env
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Local volumes
+pg_data/
+grafana_data/
