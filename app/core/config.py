@@ -26,10 +26,17 @@ class Settings(BaseSettings):
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     OWNER_MESSAGE: str = "Built in Cairo. Open to the universe."
-    WALLET_ETH: str = ""
     WALLET_BTC: str = ""
+    WALLET_ETH: str = ""
     WALLET_XRP: str = ""
+    WALLET_XRP_MEMO: str = ""
     WALLET_XLM: str = ""
+    WALLET_XLM_MEMO: str = ""
+    WALLET_ADA: str = ""
+    WALLET_LINK: str = ""
+    WALLET_USDC_ETH: str = ""
+    WALLET_USDC_BASE: str = ""
+    WALLET_USDC_SOL: str = ""
 
     CORS_ORIGINS: str = "*"
 
