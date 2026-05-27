@@ -9,12 +9,24 @@ venv/
 
 # Env
 .env
+.env.local
+.env.*.local
 
 # OS
 .DS_Store
 
 # Logs
 *.log
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Local volumes
 pg_data/
