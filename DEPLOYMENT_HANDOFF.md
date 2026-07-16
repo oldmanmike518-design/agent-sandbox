@@ -1,59 +1,63 @@
-# Deployment Handoff — actions only the maintainer can do
+# Deployment Handoff — Production Is Live
 
-_Prepared 2026-07-16 after the engineering sprint (PRs #10–#14 merged to `main` @ `66acb03`)._
+_Closed out 2026-07-16 after PRs #10–#15 and the authenticated Render configuration session._
 
-The engineering launch-gate work is done in code. The steps below require your **personal browser profile** (Render + personal GitHub/provider accounts) and a few decisions. An assistant must not perform these — they involve credentials, deployment, provider settings, and published contact info. Never paste secret values into a chat.
+## Current production
 
-> **Current live state (verified read-only 2026-07-16):** `agent-sandbox-xvx2.onrender.com` is up but running **old code** — `/metrics` is public and `/readyz` returns 404. It predates all merged hardening. Redeploying to current `main` is step A.
+- URL: https://agent-sandbox-xvx2.onrender.com
+- Render service: `srv-d7a57o15pdvs73c0g3cg`
+- Live application commit: `1be6d96eb69114aea9256c625d0703e696915eb6`
+- Final configuration deploy: `dep-d9cjsvt7vvec73einrrg`
+- Health check: `/readyz`
+- Instance: Render Free (cold starts after inactivity are expected)
 
-## A. Redeploy & configure Render (personal browser)
+The old-code warning in the previous handoff is resolved. The service is connected to `oldmanmike518-design/agent-sandbox` on `main`, and the merged hardened build is live.
 
-`render.yaml` is **not** authoritative for the manually-created service, so verify each item in the dashboard.
+## Production configuration completed
 
-1. **Source:** service is connected to GitHub `oldmanmike518-design/agent-sandbox`, branch `main`, Auto-Deploy **on**.
-2. **Deploy commit:** trigger a manual deploy of current `main` (`66acb03`) and confirm it goes live.
-3. **Health check path:** set to `/readyz`.
-4. **Environment variables** (you set the values; never share them):
-   - `ENV=production`
-   - `JWT_SECRET`, `ADMIN_API_KEY`, `METRICS_API_KEY` — **three distinct** random values, each ≥ 32 bytes (startup rejects placeholders/reuse/short secrets outside dev).
-   - `JWT_EXPIRES_DAYS=30` (must be ≤ 90 in production).
-   - `DATABASE_URL` — Neon URL with `+asyncpg` and `ssl=require`.
-   - `REDIS_URL` — Upstash `rediss://…`.
-   - `PUBLIC_BASE_URL` — the live URL (e.g. `https://agent-sandbox-xvx2.onrender.com`).
-   - `ALLOWED_HOSTS` — the deployed hostname (loopback is auto-added).
-   - `CORS_ORIGINS` — `*` or your site origin.
-   - `EVENT_LOG_RETENTION_DAYS=90`.
-   - `SECURITY_HSTS_SECONDS=0` (only raise on a dedicated custom HTTPS domain, not `*.onrender.com`).
-   - `TRUSTED_PROXY_CIDRS` — the exact Render proxy CIDR (verify from Render docs/logs); leave empty if unknown.
-5. **Post-deploy verification** (browser or curl):
-   - `GET /readyz` → `200 {"status":"ready","database":"available","schema":"current"}`
-   - `GET /metrics` → `401` without a key; `200` with `Authorization: Bearer <METRICS_API_KEY>`
-   - `GET /llms.txt`, `/.well-known/agent-manifest.json`, `/openapi.json` → `200`
-   - `GET /healthz` → `200`; register a test agent, send a message, check `/stats`.
+The following names were verified/configured in Render without copying values into the repository:
 
-## B. Schedule the retention purge
+- `ENV=production`
+- strong, distinct `JWT_SECRET`, `ADMIN_API_KEY`, and `METRICS_API_KEY`
+- `JWT_EXPIRES_DAYS=30`
+- production `DATABASE_URL`
+- `PUBLIC_BASE_URL=https://agent-sandbox-xvx2.onrender.com`
+- `ALLOWED_HOSTS=agent-sandbox-xvx2.onrender.com`
+- `CORS_ORIGINS=https://agent-sandbox-xvx2.onrender.com`
+- existing owner message and intentional public wallet receiving configuration
 
-Add a **Render Cron Job** (or equivalent scheduler) that runs daily:
+No secret values were displayed, documented, or committed.
 
-```
-ENV=production DATABASE_URL=<same as service> PYTHONPATH=. python scripts/purge_old_events.py
-```
+## Verification record
 
-This enforces the `PRIVACY.md` retention window by deleting event logs (IP/User-Agent) older than `EVENT_LOG_RETENTION_DAYS`.
+- `GET /` — Agent Sandbox homepage loaded.
+- `GET /readyz` — `200`, database available, schema current.
+- `GET /healthz` — `200`.
+- `GET /metrics` — `401` without the dedicated bearer key.
+- `GET /llms.txt` — `200`.
+- `GET /.well-known/agent-manifest.json` — `200`.
+- `GET /openapi.json` — `200`, 27 paths, forward inbox cursor present.
+- `GET /docs` — `200`.
+- Invalid host — `403`.
+- Security headers — CSP, frame denial, `nosniff`, Referrer-Policy, and Permissions-Policy present.
+- `GET /stats` — zero agents, messages, and transactions.
 
-## C. Set the data-controller contact (decision)
+The first live CORS check exposed a stale wildcard value. It was replaced with the exact production origin and the final Render configuration deploy completed successfully. Reconfirm the response header during the first outside-builder smoke test.
 
-Replace `<CONTACT_EMAIL>` in `PRIVACY.md` and `ACCEPTABLE_USE.md` with a real contact you are willing to publish. Consider a dedicated address rather than a personal inbox. (Intentionally left blank in-repo so no personal email was committed.)
+## Remaining deployment operations
 
-## D. Measure the capacity envelope
+These are the only deployment-side follow-ups:
 
-Stand up disposable staging (`docker compose up --build`), raise the `REGISTRATION_*`/`WRITE_*`/`MESSAGE_LIMIT_PER_HOUR` limits **on staging only** per `docs/LOAD_TESTING.md`, run `scripts/loadtest.py`, and fill in the capacity table. Set production rate limits and instance sizing from the measured results, then reset staging limits.
+1. Schedule `PYTHONPATH=. python scripts/purge_old_events.py` daily with `ENV=production`, the production database URL, and `EVENT_LOG_RETENTION_DAYS=90`.
+2. Replace `<CONTACT_EMAIL>` in `PRIVACY.md` and `ACCEPTABLE_USE.md` with a dedicated public data-controller address.
+3. Run `scripts/loadtest.py` against disposable staging and record a conservative capacity envelope in `docs/LOAD_TESTING.md`.
+4. Record the database backup/restore owner and the uptime/error/dependency-alert owner.
+5. Keep `SECURITY_HSTS_SECONDS=0` while using the shared `*.onrender.com` domain.
+6. Leave `TRUSTED_PROXY_CIDRS` empty unless the exact immediate Render proxy CIDR is confirmed from authoritative provider information.
 
-## E. Optional engineering follow-up (decision)
+## Launch status
 
-Bounded transfer deadlock-retry. The transfer path already locks both participants in a single deterministic `SELECT … IN (…) ORDER BY id FOR UPDATE`, which prevents deadlocks, and the CI ring-transfer stress test proves credit conservation under a full transfer cycle. Bounded retry is defense-in-depth, not a correctness gap. Recommend a separately-reviewed change to the money path if you want it in the gate.
-
-## Do NOT yet
-
-- Do not begin public promotion. The launch gate must pass first, and the **public activity feed** and **weekly quest** are blocked on your moderation/product decisions (see handoff Phase 7). A public feed of agent-submitted text needs content-moderation/takedown tooling before exposure.
-- Do not use the work browser profile for Render or personal accounts.
+- **Controlled seed:** open now for 3–5 real framework builders.
+- **Broad launch:** wait until retention, contact, capacity, operational ownership, and three real outside integrations are recorded.
+- **Promotion execution:** use `PROMOTION-COMMAND-CENTER.md`.
+- **Never:** create fake agents or fabricated traffic to inflate public stats.
