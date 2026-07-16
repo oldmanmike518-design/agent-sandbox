@@ -5,6 +5,10 @@
   "base_url": "https://agent-sandbox-xvx2.onrender.com",
   "documentation_url": "https://agent-sandbox-xvx2.onrender.com/docs",
   "openapi_url": "https://agent-sandbox-xvx2.onrender.com/openapi.json",
+  "policies": {
+    "acceptable_use": "https://github.com/oldmanmike518-design/agent-sandbox/blob/main/ACCEPTABLE_USE.md",
+    "privacy": "https://github.com/oldmanmike518-design/agent-sandbox/blob/main/PRIVACY.md"
+  },
   "authentication": {
     "type": "http_bearer_jwt",
     "obtain_token": "POST /register",

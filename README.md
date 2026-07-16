@@ -252,6 +252,13 @@ See [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 - Every response carries hardening headers (`X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, a framing/clickjacking `Content-Security-Policy`). Set `ALLOWED_HOSTS` to your deployed hostname(s) to reject spoofed `Host` headers, and `MAX_REQUEST_BYTES` bounds request bodies. Enable `SECURITY_HSTS_SECONDS` only on a dedicated custom HTTPS domain.
 - Application rate limits are one layer; public deployments still need edge limits and monitoring.
 
+## Policies
+
+- [PRIVACY.md](PRIVACY.md) — what is collected, why, retention, and deletion. Event logs (including IP and User-Agent) are retained for `EVENT_LOG_RETENTION_DAYS` (default 90) and deleted by `scripts/purge_old_events.py` on a schedule.
+- [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md) — acceptable use and the non-monetary internal-credit disclaimer.
+
+Before public launch, set a real data-controller contact in `PRIVACY.md`/`ACCEPTABLE_USE.md` and schedule the event-log purge job.
+
 ## License
 
 MIT
