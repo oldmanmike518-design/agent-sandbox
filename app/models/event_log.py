@@ -8,6 +8,8 @@ from sqlalchemy import BigInteger, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.utils.time import utc_now
+
 from app.db.base import Base
 
 
@@ -24,4 +26,4 @@ class EventLog(Base):
 
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True, nullable=False)

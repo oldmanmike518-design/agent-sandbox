@@ -566,3 +566,36 @@ Publish the dependency/audit slice, verify compatibility in remote CI, then diag
 ### Next action
 
 Merge PR #5 after its final required checks. Add a separate integration job with PostgreSQL 16 and Redis 7, run Alembic migrations, and land live messaging/inbox and concurrency coverage before changing registration-abuse behavior. Continue the Render dashboard/deployed-SHA investigation in parallel.
+
+---
+
+## 2026-07-16 — Session 10: Disposable PostgreSQL and Redis CI
+
+### Real dependency gate
+
+- Added a separate GitHub Actions integration job with disposable PostgreSQL 16 and Redis 7 services and explicit health checks.
+- The job applies `alembic upgrade head` before running application integration tests.
+- Added live checks for the expected migrated schema/revision, concurrent duplicate registration, concurrent same-sender transfers, inbox isolation, and the Redis rate-limit boundary.
+- Local unit discovery skips these five service-dependent tests unless `RUN_INTEGRATION=1`; ordinary local verification remains fast.
+
+### Defect found and fixed by the new gate
+
+- The first integration run failed because SQLAlchemy executed the models' deprecated naive `datetime.utcnow` defaults while deprecations were treated as errors.
+- Replaced all four model timestamp defaults with a shared `utc_now()` helper returning an aware UTC timestamp.
+- Added a focused unit regression proving the helper has a zero UTC offset.
+- The second GitHub integration run passed all five live-service scenarios; unit/lint/audit and secret-scan jobs also passed.
+
+### Verified concurrency behavior
+
+- Two simultaneous registrations for the same case-insensitive name create exactly one agent, mint starting credits exactly once, and return one success plus one `409`.
+- Two simultaneous 80-credit debits from a 100-credit sender produce one success and one stable insufficient-credit response; final balances conserve the original total and never go negative.
+- A real inbox query returns the reader's direct messages and broadcasts while excluding another agent's direct messages.
+
+### Deployment status
+
+- PR #5 merged as `bc53279`, but the live Render OpenAPI probe still exposed only `limit` and `before_id`; `after_id` remains absent, confirming the service is on stale code.
+- The Render dashboard opened to a sign-in screen. The tab was left open as the only user handoff; code hardening continued without waiting for dashboard access.
+
+### Next action
+
+Merge PR #6, then implement the Phase 2 registration-abuse-control slice with atomic limits and explicit proxy/client-IP handling. Add authenticated HTTP integration coverage as part of that work. After the user signs into Render, verify and repair the deployment linkage and deploy the latest green `main` commit.
