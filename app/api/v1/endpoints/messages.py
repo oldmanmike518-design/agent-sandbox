@@ -32,12 +32,19 @@ async def send_message(
 
     # Rate limit per agent
     allowed, remaining, reset_seconds = await enforce_message_limit(agent.id, session)
-    response.headers["X-RateLimit-Limit"] = str(settings.MESSAGE_LIMIT_PER_HOUR)
-    response.headers["X-RateLimit-Remaining"] = str(remaining)
-    response.headers["X-RateLimit-Reset"] = str(reset_seconds)
+    rate_limit_headers = {
+        "X-RateLimit-Limit": str(settings.MESSAGE_LIMIT_PER_HOUR),
+        "X-RateLimit-Remaining": str(remaining),
+        "X-RateLimit-Reset": str(reset_seconds),
+    }
+    response.headers.update(rate_limit_headers)
 
     if not allowed:
-        raise HTTPException(status_code=429, detail="Message rate limit exceeded")
+        raise HTTPException(
+            status_code=429,
+            detail="Message rate limit exceeded",
+            headers=rate_limit_headers,
+        )
 
     recipient_id = body.to_agent_id
     if recipient_id is None and body.to_agent_name:

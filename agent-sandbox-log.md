@@ -532,3 +532,37 @@ Publish this messaging slice, then add messaging-send behavior, disposable Postg
 ### Next action
 
 Publish the dependency/audit slice, verify compatibility in remote CI, then diagnose or manually trigger the Render deployment and confirm the live OpenAPI schema.
+
+---
+
+## 2026-07-16 — Session 9: Messaging Send-Contract Hardening
+
+### Autonomous execution model
+
+- The user authorized Codex to quarterback implementation, testing, publishing, merging, and deployment verification without pausing at ordinary reversible checkpoints.
+- Three read-only specialist lanes reviewed messaging behavior, auth/abuse priorities, and CI/deployment configuration while the primary agent implemented the next slice.
+- A narrow read-only Claude consultation was attempted through the approved `ask-claude` wrapper. The CLI reported a 401 for the non-interactive request even though `claude auth status` showed the local account as logged in, so Claude remained optional and did not block progress.
+
+### Messaging defects fixed
+
+- Made `MessageSendRequest` reject unknown fields. Previously, a client typo such as `to_agent` was silently discarded by Pydantic and the supposedly private message was stored as a broadcast.
+- Rejects requests that provide both `to_agent_id` and `to_agent_name` instead of silently preferring one recipient selector.
+- Added rate-limit headers directly to the raised `429` exception. Previously, the injected response carried the headers but FastAPI replaced that response while handling `HTTPException`, so clients received no limit/reset metadata.
+- Added direct-send and broadcast regressions covering normalized content, sender/recipient counters, event creation, transaction commit, and no-write behavior after rate-limit rejection.
+
+### Verification and publication
+
+- Ruff passed across `app` and `tests`.
+- `33 passed` with deprecation warnings treated as errors.
+- Published branch `agent/messaging-send-contract` and opened PR #5.
+- The code commit passed the remote test, lint, dependency-audit, and full-history secret-scan gates; the documentation commit runs through the same required checks before merge.
+
+### Parallel-review conclusions
+
+- The highest public-alpha security risk after Phase 1 is still unlimited unauthenticated registration: each new identity receives starting credits and can bypass per-agent message limits. The next security slice must add atomic IP/global registration controls with a defined Redis-down fallback, then credential revocation/admin controls.
+- The existing Render service was created manually rather than from the repository Blueprint. Its actual GitHub source, branch, build filters, and auto-deploy setting live in the Render dashboard; `render.yaml` does not prove that auto-deploy is enabled.
+- CI still lacks disposable PostgreSQL and Redis services, migration execution, and real concurrency/dependency fixtures.
+
+### Next action
+
+Merge PR #5 after its final required checks. Add a separate integration job with PostgreSQL 16 and Redis 7, run Alembic migrations, and land live messaging/inbox and concurrency coverage before changing registration-abuse behavior. Continue the Render dashboard/deployed-SHA investigation in parallel.
