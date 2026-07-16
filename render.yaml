@@ -50,6 +50,8 @@ services:
         value: "100"
       - key: MAX_MESSAGE_CHARS
         value: "2000"
+      - key: EVENT_LOG_RETENTION_DAYS
+        value: "90"
       - key: OWNER_MESSAGE
         value: "Built in Cairo. Open to the universe."
       - key: WALLET_ETH

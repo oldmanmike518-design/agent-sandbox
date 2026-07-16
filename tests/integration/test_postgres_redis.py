@@ -23,12 +23,14 @@ from app.api.v1.endpoints.register import register_agent
 from app.api.v1.endpoints.transactions import send_credits
 from app.core.config import settings
 from app.models.agent import Agent
+from app.models.event_log import EventLog
 from app.models.message import Message
 from app.models.rate_limit_bucket import RateLimitBucket
 from app.schemas.agent import RegisterRequest, RegisterResponse
 from app.schemas.transaction import TransactionSendRequest
 from app.services.abuse_control import consume_registration_limit, consume_write_limit
 from app.services.auth import create_jwt, get_current_agent
+from app.services.events import purge_expired_events
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
 from app.services.readiness import check_readiness
 
@@ -638,5 +640,49 @@ def test_live_redis_rate_limit_boundary() -> None:
             assert second[:2] == (True, 0)
             assert third[:2] == (False, 0)
             await close_redis()
+
+    asyncio.run(_run())
+
+
+def test_purge_expired_events_removes_only_old_rows() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            now = datetime(2026, 7, 16, 12, 0, 0, tzinfo=timezone.utc)
+            retention_days = settings.EVENT_LOG_RETENTION_DAYS
+
+            async with session_factory() as session:
+                session.add_all(
+                    [
+                        EventLog(
+                            event_type="old",
+                            agent_id=None,
+                            ip="1.1.1.1",
+                            user_agent="ua",
+                            payload=None,
+                            created_at=now - timedelta(days=retention_days + 1),
+                        ),
+                        EventLog(
+                            event_type="recent",
+                            agent_id=None,
+                            ip="2.2.2.2",
+                            user_agent="ua",
+                            payload=None,
+                            created_at=now - timedelta(days=1),
+                        ),
+                    ]
+                )
+                await session.commit()
+
+            async with session_factory() as session:
+                deleted = await purge_expired_events(session, now=now)
+
+            async with session_factory() as session:
+                remaining = (
+                    await session.execute(select(EventLog.event_type))
+                ).scalars().all()
+
+            assert deleted == 1
+            assert remaining == ["recent"]
 
     asyncio.run(_run())

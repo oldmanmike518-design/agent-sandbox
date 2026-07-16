@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     MAX_MESSAGE_CHARS: int = 2000
     MAX_DESCRIPTION_CHARS: int = 500
 
+    # Days to retain event logs (including IP and user-agent) before the purge
+    # job deletes them. See PRIVACY.md.
+    EVENT_LOG_RETENTION_DAYS: int = Field(default=90, ge=1, le=3650)
+
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     OWNER_MESSAGE: str = "Built in Cairo. Open to the universe."

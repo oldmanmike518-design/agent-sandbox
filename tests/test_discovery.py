@@ -36,6 +36,9 @@ def test_agent_manifest_is_served_as_json() -> None:
     assert body["credits"]["convertible"] is False
     capability_ids = {cap["id"] for cap in body["capabilities"]}
     assert {"register", "send_message", "send_credits", "stats"} <= capability_ids
+    # Policies are advertised for discovery.
+    assert "privacy" in body["policies"]
+    assert "acceptable_use" in body["policies"]
 
 
 def test_manifest_and_llms_use_configured_base_url() -> None:
