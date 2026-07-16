@@ -5,7 +5,7 @@
 **Last updated:** 2026-07-16
 **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
-**Current branch:** `main` (local hardening commits are intentionally ahead of `origin/main`; run `git log -1` for the current commit)
+**Current branch:** `main` after each reviewed hardening pull request is merged; run `git status` and `git log -1` for the exact checkout state.
 **Recorded deployment:** https://agent-sandbox-xvx2.onrender.com
 **Deployment status:** **Live and independently verified on 2026-07-16.** It cold-started (initial `503` with `Retry-After: 5`) and then became healthy. `/stats` still showed zero agents, messages, and transactions. `/docs`, `/openapi.json`, and `/metrics` were all publicly reachable without authentication.
 
@@ -62,7 +62,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** twenty-nine tests now also cover forward/backward inbox cursors, cursor exclusivity, Redis/DB rate-limit boundaries, registration integrity, and transfer lock order.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-three tests now also cover direct and broadcast sends, strict recipient validation, rate-limit rejection headers, forward/backward inbox cursors, Redis/DB rate-limit boundaries, registration integrity, and transfer lock order.
 - [ ] Add database-backed concurrency tests. **Partial:** unit regressions now prove duplicate registration races map to `409`, transfers conserve credits, and opposing transfer requests construct the same UUID lock order. Live PostgreSQL concurrency coverage remains.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1 with messaging-send behavior and disposable-PostgreSQL concurrency coverage. Investigate why the Render service has not yet exposed the merged `after_id` OpenAPI contract. Do not begin promotion work.
+Continue Phase 1 with a separate disposable-PostgreSQL/Redis CI job, migrations, and live concurrency/inbox coverage. Then begin the smallest safe Phase 2 registration-abuse-control slice. In parallel, verify the manually created Render service's source, branch, auto-deploy setting, and deployed commit in the dashboard; `render.yaml` is not authoritative for that service. Do not begin promotion work.
 
 ## Known Historical Notes
 
