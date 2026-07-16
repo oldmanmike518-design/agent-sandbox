@@ -18,6 +18,12 @@ services:
         value: "*"
       - key: STARTING_CREDITS
         value: "1000"
+      - key: REGISTRATION_IP_LIMIT_PER_HOUR
+        value: "5"
+      - key: REGISTRATION_GLOBAL_LIMIT_PER_HOUR
+        value: "100"
+      - key: REGISTRATION_LIMIT_WINDOW_SECONDS
+        value: "3600"
       - key: MESSAGE_LIMIT_PER_HOUR
         value: "100"
       - key: MAX_MESSAGE_CHARS

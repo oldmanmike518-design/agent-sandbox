@@ -43,3 +43,13 @@ def test_development_allows_explicit_dev_secret() -> None:
     )
 
     assert settings.JWT_SECRET.startswith("agent-sandbox-local")
+
+
+def test_invalid_trusted_proxy_cidr_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
+        Settings(
+            _env_file=None,
+            ENV="test",
+            DATABASE_URL=DATABASE_URL,
+            TRUSTED_PROXY_CIDRS="not-a-network",
+        )

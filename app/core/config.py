@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, model_validator
+from ipaddress import ip_network
 from typing import List, Optional
+
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,6 +21,10 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
 
     STARTING_CREDITS: int = 1000
+    REGISTRATION_IP_LIMIT_PER_HOUR: int = Field(default=5, ge=1)
+    REGISTRATION_GLOBAL_LIMIT_PER_HOUR: int = Field(default=100, ge=1)
+    REGISTRATION_LIMIT_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
+    TRUSTED_PROXY_CIDRS: str = ""
     MESSAGE_LIMIT_PER_HOUR: int = 100
     MAX_MESSAGE_CHARS: int = 2000
     MAX_DESCRIPTION_CHARS: int = 500
@@ -55,6 +61,22 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError("DATABASE_URL is required")
         return v
+
+    @field_validator("TRUSTED_PROXY_CIDRS")
+    @classmethod
+    def _trusted_proxy_cidrs_valid(cls, value: str) -> str:
+        for item in (part.strip() for part in value.split(",")):
+            if item:
+                ip_network(item, strict=False)
+        return value
+
+    @property
+    def trusted_proxy_networks(self):
+        return [
+            ip_network(item.strip(), strict=False)
+            for item in self.TRUSTED_PROXY_CIDRS.split(",")
+            if item.strip()
+        ]
 
     @model_validator(mode="after")
     def _secure_production_jwt_secret(self) -> "Settings":

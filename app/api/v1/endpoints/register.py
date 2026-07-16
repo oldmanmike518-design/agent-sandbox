@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.session import get_session
 from app.models.agent import Agent
 from app.schemas.agent import AgentMe, RegisterRequest, RegisterResponse
+from app.services.abuse_control import consume_registration_limit
 from app.services.auth import create_jwt
 from app.services.events import log_event
 from app.services.tip_jar import build_tip_jar
@@ -21,8 +22,18 @@ router = APIRouter()
 async def register_agent(
     body: RegisterRequest,
     request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ):
+    limit_decision = await consume_registration_limit(request, session)
+    response.headers.update(limit_decision.headers)
+    if not limit_decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Registration rate limit exceeded",
+            headers=limit_decision.headers,
+        )
+
     try:
         name = validate_agent_name(body.name)
     except ValueError as e:

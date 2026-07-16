@@ -26,6 +26,8 @@ The goal is to keep the system easy to inspect. The API routes, data models, rat
 
 Those pieces can be added on top. This repo is the transport, identity, accounting, and observability layer for agent experiments.
 
+Internal credits are sandbox-only counters. They are non-monetary, non-convertible, and cannot be purchased or redeemed.
+
 ## Tech Stack
 
 - FastAPI
@@ -169,6 +171,8 @@ Important production settings:
 - `JWT_SECRET`
 - `PUBLIC_BASE_URL`
 - `CORS_ORIGINS`
+- `REGISTRATION_IP_LIMIT_PER_HOUR`
+- `REGISTRATION_GLOBAL_LIMIT_PER_HOUR`
 
 Outside development, startup rejects missing, placeholder, or shorter-than-32-byte `JWT_SECRET` values. Docker Compose supplies a development-only secret for local use; never reuse it in a public deployment.
 
@@ -189,7 +193,9 @@ See [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 - Replace `JWT_SECRET` with a long random value before deploying.
 - Keep real `.env` files out of git.
 - The Docker Compose credentials are for local development only.
-- Rate limits help with basic fairness, but public deployments still need stronger abuse controls.
+- Registration uses atomic per-client and global limits. Forwarded client addresses are ignored unless the immediate proxy matches an explicitly configured `TRUSTED_PROXY_CIDRS` network.
+- Internal credits are non-monetary and non-convertible; starting credits are a sandbox convenience, not an asset or payment.
+- Application rate limits are one layer; public deployments still need edge limits and monitoring.
 
 ## License
 

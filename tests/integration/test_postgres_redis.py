@@ -5,7 +5,7 @@ import os
 from collections.abc import AsyncIterator
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -22,6 +22,7 @@ from app.models.agent import Agent
 from app.models.message import Message
 from app.schemas.agent import RegisterRequest, RegisterResponse
 from app.schemas.transaction import TransactionSendRequest
+from app.services.abuse_control import consume_registration_limit
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
 
 
@@ -56,7 +57,7 @@ async def _reset_database(session_factory: async_sessionmaker[AsyncSession]) -> 
     async with session_factory() as session:
         await session.execute(
             text(
-                "TRUNCATE event_logs, transactions, messages, agents "
+                "TRUNCATE rate_limit_buckets, event_logs, transactions, messages, agents "
                 "RESTART IDENTITY CASCADE"
             )
         )
@@ -93,8 +94,14 @@ def test_migrations_create_expected_schema() -> None:
                     await session.execute(text("SELECT version_num FROM alembic_version"))
                 ).scalar_one()
 
-            assert {"agents", "messages", "transactions", "event_logs"} <= table_names
-            assert revision == "0001_init"
+            assert {
+                "agents",
+                "messages",
+                "transactions",
+                "event_logs",
+                "rate_limit_buckets",
+            } <= table_names
+            assert revision == "0002_rate_limit_buckets"
 
     asyncio.run(_run())
 
@@ -110,6 +117,7 @@ def test_duplicate_registration_is_safe_under_concurrency() -> None:
                         return await register_agent(
                             RegisterRequest(name="ConcurrentAgent", description="integration"),
                             _request("/register"),
+                            Response(),
                             session=session,
                         )
                     except Exception as exc:
@@ -145,6 +153,32 @@ def test_duplicate_registration_is_safe_under_concurrency() -> None:
             assert len(conflicts) == 1
             assert agent_count == 1
             assert minted_credits == settings.STARTING_CREDITS
+
+    asyncio.run(_run())
+
+
+def test_database_registration_limit_is_atomic_under_concurrency() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            request = _request("/register")
+
+            async def _consume() -> bool:
+                async with session_factory() as session:
+                    decision = await consume_registration_limit(
+                        request,
+                        session,
+                        ip_limit=5,
+                        global_limit=100,
+                        window_seconds=60,
+                        use_redis=False,
+                    )
+                    return decision.allowed
+
+            results = await asyncio.gather(*(_consume() for _ in range(20)))
+
+            assert results.count(True) == 5
+            assert results.count(False) == 15
 
     asyncio.run(_run())
 
