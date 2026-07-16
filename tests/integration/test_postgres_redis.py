@@ -1,0 +1,268 @@
+from __future__ import annotations
+
+import asyncio
+import os
+from collections.abc import AsyncIterator
+
+import pytest
+from fastapi import HTTPException, Request
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.pool import NullPool
+
+from app.api.v1.endpoints.messages import inbox
+from app.api.v1.endpoints.register import register_agent
+from app.api.v1.endpoints.transactions import send_credits
+from app.core.config import settings
+from app.models.agent import Agent
+from app.models.message import Message
+from app.schemas.agent import RegisterRequest, RegisterResponse
+from app.schemas.transaction import TransactionSendRequest
+from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
+
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_INTEGRATION") != "1",
+    reason="requires disposable PostgreSQL and Redis services",
+)
+
+
+def _request(path: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": path,
+            "headers": [],
+            "client": ("127.0.0.1", 12345),
+        }
+    )
+
+
+async def _session_factory() -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], object]]:
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        yield session_factory, engine
+    finally:
+        await engine.dispose()
+
+
+async def _reset_database(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    async with session_factory() as session:
+        await session.execute(
+            text(
+                "TRUNCATE event_logs, transactions, messages, agents "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
+        await session.commit()
+
+
+async def _new_agent(
+    session: AsyncSession,
+    *,
+    name: str,
+    credits: int = 0,
+) -> Agent:
+    agent = Agent(name=name, description=name, credits_balance=credits)
+    session.add(agent)
+    await session.flush()
+    return agent
+
+
+def test_migrations_create_expected_schema() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            async with session_factory() as session:
+                table_names = set(
+                    (
+                        await session.execute(
+                            text(
+                                "SELECT tablename FROM pg_tables "
+                                "WHERE schemaname = 'public'"
+                            )
+                        )
+                    ).scalars()
+                )
+                revision = (
+                    await session.execute(text("SELECT version_num FROM alembic_version"))
+                ).scalar_one()
+
+            assert {"agents", "messages", "transactions", "event_logs"} <= table_names
+            assert revision == "0001_init"
+
+    asyncio.run(_run())
+
+
+def test_duplicate_registration_is_safe_under_concurrency() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+
+            async def _register() -> RegisterResponse | Exception:
+                async with session_factory() as session:
+                    try:
+                        return await register_agent(
+                            RegisterRequest(name="ConcurrentAgent", description="integration"),
+                            _request("/register"),
+                            session=session,
+                        )
+                    except Exception as exc:
+                        return exc
+
+            results = await asyncio.gather(_register(), _register())
+            successes = [result for result in results if isinstance(result, RegisterResponse)]
+            conflicts = [
+                result
+                for result in results
+                if isinstance(result, HTTPException) and result.status_code == 409
+            ]
+
+            async with session_factory() as session:
+                agent_count = int(
+                    (
+                        await session.execute(
+                            select(func.count(Agent.id)).where(
+                                func.lower(Agent.name) == "concurrentagent"
+                            )
+                        )
+                    ).scalar_one()
+                )
+                minted_credits = int(
+                    (
+                        await session.execute(
+                            select(func.coalesce(func.sum(Agent.credits_balance), 0))
+                        )
+                    ).scalar_one()
+                )
+
+            assert len(successes) == 1
+            assert len(conflicts) == 1
+            assert agent_count == 1
+            assert minted_credits == settings.STARTING_CREDITS
+
+    asyncio.run(_run())
+
+
+def test_concurrent_transfers_do_not_double_spend() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                sender = await _new_agent(session, name="Sender", credits=100)
+                recipient = await _new_agent(session, name="Recipient")
+                sender_id = sender.id
+                recipient_id = recipient.id
+                await session.commit()
+
+            async def _transfer() -> object:
+                async with session_factory() as session:
+                    try:
+                        return await send_credits(
+                            TransactionSendRequest(to_agent_id=recipient_id, amount=80),
+                            _request("/transaction/send"),
+                            agent=Agent(id=sender_id),
+                            session=session,
+                        )
+                    except Exception as exc:
+                        return exc
+
+            results = await asyncio.gather(_transfer(), _transfer())
+            successes = [result for result in results if not isinstance(result, Exception)]
+            insufficient = [
+                result
+                for result in results
+                if isinstance(result, HTTPException)
+                and result.status_code == 400
+                and result.detail == "Insufficient credits"
+            ]
+
+            async with session_factory() as session:
+                stored_sender = await session.get(Agent, sender_id)
+                stored_recipient = await session.get(Agent, recipient_id)
+
+            assert len(successes) == 1
+            assert len(insufficient) == 1
+            assert stored_sender is not None
+            assert stored_recipient is not None
+            assert stored_sender.credits_balance == 20
+            assert stored_recipient.credits_balance == 80
+            assert stored_sender.credits_balance + stored_recipient.credits_balance == 100
+
+    asyncio.run(_run())
+
+
+def test_inbox_includes_own_direct_messages_and_broadcasts_only() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                reader = await _new_agent(session, name="Reader")
+                other = await _new_agent(session, name="Other")
+                sender = await _new_agent(session, name="MessageSender")
+                session.add_all(
+                    [
+                        Message(
+                            sender_id=sender.id,
+                            recipient_id=reader.id,
+                            content="for reader",
+                            is_broadcast=False,
+                        ),
+                        Message(
+                            sender_id=sender.id,
+                            recipient_id=other.id,
+                            content="for other",
+                            is_broadcast=False,
+                        ),
+                        Message(
+                            sender_id=sender.id,
+                            recipient_id=None,
+                            content="for everyone",
+                            is_broadcast=True,
+                        ),
+                    ]
+                )
+                await session.commit()
+
+                response = await inbox(
+                    agent=reader,
+                    session=session,
+                    limit=50,
+                    before_id=None,
+                    after_id=None,
+                )
+
+            assert {item.content for item in response.items} == {
+                "for reader",
+                "for everyone",
+            }
+
+    asyncio.run(_run())
+
+
+def test_live_redis_rate_limit_boundary() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            redis_client = await get_redis()
+            assert redis_client is not None
+            await redis_client.flushdb()
+
+            async with session_factory() as session:
+                agent = await _new_agent(session, name="RedisAgent")
+                await session.commit()
+
+                first = await enforce_message_limit(agent.id, session, limit_per_hour=2)
+                second = await enforce_message_limit(agent.id, session, limit_per_hour=2)
+                third = await enforce_message_limit(agent.id, session, limit_per_hour=2)
+
+            assert first[:2] == (True, 1)
+            assert second[:2] == (True, 0)
+            assert third[:2] == (False, 0)
+            await close_redis()
+
+    asyncio.run(_run())

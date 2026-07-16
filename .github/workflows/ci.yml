@@ -39,6 +39,61 @@ jobs:
       - name: Run tests
         run: python -W error::DeprecationWarning -m pytest -q
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sandbox
+          POSTGRES_PASSWORD: sandbox
+          POSTGRES_DB: sandbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sandbox -d sandbox"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ENV: test
+      JWT_SECRET: agent-sandbox-ci-development-only-secret
+      DATABASE_URL: postgresql+asyncpg://sandbox:sandbox@localhost:5432/sandbox
+      REDIS_URL: redis://localhost:6379/0
+      RUN_INTEGRATION: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Apply database migrations
+        run: python -m alembic upgrade head
+
+      - name: Run PostgreSQL and Redis integration tests
+        run: python -W error::DeprecationWarning -m pytest -q tests/integration
+
   secret-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
