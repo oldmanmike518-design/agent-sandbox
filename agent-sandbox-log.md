@@ -168,8 +168,6 @@ Agent Sandbox was discovered during a GitHub audit after sitting undeployed sinc
 
 Begin Phase 1 from `agent-sandbox-handoff.md`: resolve the wallet-example policy, run a history-aware secret scan, and build the automated test baseline.
 
----
-
 ## 2026-07-16 — Session 3: Independent Claude Security, Product, and Commercial Review
 
 > Independent second-opinion review by Claude. The Codex audit in Session 2 above was treated as context, not conclusion. Every important Session 2 finding was re-inspected first-hand. This entry preserves the Codex audit unchanged and records where Claude confirmed, reframed, or added to it.
@@ -345,3 +343,49 @@ Not raw registrations (Sybil noise). Track: distinct builders with ≥1 agent; a
 ### Next action
 
 Execute the handoff's Phase 0.5 immediate safety fixes, then Phase 1 tests/CI, before any behavior-changing hardening. Do not begin promotion.
+
+---
+
+## 2026-07-16 — Session 4: Documentation Baseline and Phase 0.5 Hardening
+
+### Documentation baseline
+
+- Verified Claude's Session 3 incorporation against the actual files and repository state.
+- Added the seven canonical project documents to Git and created local commit `0fdf38a` (`docs: establish canonical project handoff`).
+- Kept the commit local; nothing was pushed or deployed.
+
+### JWT safety completed
+
+- Added a production configuration validator that fails startup when `JWT_SECRET` is empty, shorter than 32 bytes, or contains a known development/placeholder marker.
+- Kept explicit development/test environments usable with a development-only secret.
+- Changed the code default from the generic public `change-me` value to a clearly development-only value.
+- Added an explicit local development secret to Docker Compose so the advertised Compose path no longer silently inherits the generic default.
+- Reworded `.env.example` to require a random production secret while retaining all intentionally public tip-wallet receiving information.
+
+### Redis resilience completed
+
+- Added two-second Redis connect and command timeouts.
+- Caught Redis connection, operating-system, and timeout failures around the rate-limit operation.
+- On Redis failure, the cached client is discarded and the existing database counter is used rather than returning HTTP 500.
+- Consolidated shutdown and failure cleanup through the same asynchronous client-discard helper.
+- Redis URLs and credentials are never included in fallback logs.
+
+### Test baseline started
+
+- Added `requirements-dev.txt` with pytest.
+- Added seven focused tests covering weak/placeholder production secret rejection, strong production secret acceptance, development-secret acceptance, and Redis-down database fallback/client reset.
+- Added `tests/conftest.py` with local-only test configuration.
+- Added reproducible test setup instructions to the README and a `make test-unit` target.
+- Created an ignored Python 3.12 virtual environment for local verification.
+
+### Verification
+
+- `7 passed` under Python 3.12.
+- Python `compileall` passed for application and tests.
+- `docker compose config --quiet` passed.
+- `git diff --check` passed.
+- No Docker containers, production services, or external deployment settings were changed.
+
+### Next action
+
+Continue Phase 1 with endpoint/authentication coverage, concurrency fixtures, and GitHub Actions. Keep all promotion work blocked behind the launch gate.

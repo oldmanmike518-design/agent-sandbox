@@ -5,7 +5,7 @@
 **Last updated:** 2026-07-16
 **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
-**Current commit:** `0b58810` (`main`, synchronized with `origin/main`)
+**Current branch:** `main` (local hardening commits are intentionally ahead of `origin/main`; run `git log -1` for the current commit)
 **Recorded deployment:** https://agent-sandbox-xvx2.onrender.com
 **Deployment status:** **Live and independently verified on 2026-07-16.** It cold-started (initial `503` with `Retry-After: 5`) and then became healthy. `/stats` still showed zero agents, messages, and transactions. `/docs`, `/openapi.json`, and `/metrics` were all publicly reachable without authentication.
 
@@ -57,12 +57,12 @@ Ship the Phase 0.5 immediate safety fixes, then build a testable baseline (Phase
 
 Small, high-leverage changes that close the worst exposure without altering core behavior.
 
-- [ ] **JWT fail-closed guardrail (top priority).** Reject empty, placeholder (`change-me*`), or short (<32 bytes) `JWT_SECRET` at startup when `ENV != dev`. Set a distinct dev-only secret in `docker-compose.yml` so the advertised `docker compose up` is not forgeable. Remove the real-looking placeholder from `.env.example`.
-- [ ] **Redis failure handling.** Wrap Redis calls in try/except with short connect/read timeouts; on failure, deliberately fall back to the database counter or fail closed (do not 500), and reset the cached client. Land the matching tests in Phase 1 rather than shipping this untested — keep the test requirement explicit.
+- [x] **JWT fail-closed guardrail (completed 2026-07-16).** Non-development startup rejects empty, known-placeholder, or shorter-than-32-byte `JWT_SECRET` values. Compose supplies an explicit development-only secret and `.env.example` clearly requires replacement.
+- [x] **Redis failure handling (completed 2026-07-16).** Redis uses short connect/read timeouts; connection/command failures discard the cached client and deliberately use the database fallback instead of returning 500. Focused regression coverage is included.
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Add pytest unit and integration coverage for registration, JWT authentication (including the Phase 0.5 guardrail and rejection of expired/wrong-issuer/wrong-alg/tampered tokens), messaging, pagination, transfers, rate limiting (Redis path, DB-fallback path, and the Redis-down path returning a defined behavior), health/readiness, and validation failures.
+- [ ] Expand pytest unit and integration coverage for registration, JWT authentication, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** seven focused tests now cover production JWT-secret rejection/acceptance and Redis-down database fallback.
 - [ ] Add concurrency tests: duplicate registration race (must return 409, not 500); concurrent same-sender debits must not oversend (double-spend regression guard); opposing transfers must not 500 after the deadlock-retry fix.
 - [ ] Add GitHub Actions for tests, linting, dependency audit, and secret scanning.
 - [ ] Add reproducible local test instructions that do not require production credentials.
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Execute Phase 0.5 (JWT fail-closed guardrail first, then Redis failure handling with tests to follow in Phase 1), then begin Phase 1 by building the test matrix and fixtures. Do not begin promotion work.
+Continue Phase 1: expand the focused test baseline into endpoint, authentication, integration, and concurrency coverage; then add GitHub Actions. Do not begin promotion work.
 
 ## Known Historical Notes
 

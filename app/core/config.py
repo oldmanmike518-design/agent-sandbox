@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator, model_validator
 from typing import List, Optional
 
 
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     ENV: str = "dev"
     LOG_LEVEL: str = "INFO"
 
-    JWT_SECRET: str = "change-me"
+    JWT_SECRET: str = "dev-only-change-me"
     JWT_ISSUER: str = "agent-sandbox"
     JWT_EXPIRES_DAYS: int = 3650
 
@@ -55,6 +55,19 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError("DATABASE_URL is required")
         return v
+
+    @model_validator(mode="after")
+    def _secure_production_jwt_secret(self) -> "Settings":
+        if self.ENV.strip().lower() in {"dev", "development", "test"}:
+            return self
+
+        secret = self.JWT_SECRET.strip()
+        insecure_markers = ("change-me", "dev-only", "replace-with", "generate-a-")
+        if len(secret.encode("utf-8")) < 32 or any(marker in secret.lower() for marker in insecure_markers):
+            raise ValueError(
+                "JWT_SECRET must be a non-placeholder secret of at least 32 bytes outside development"
+            )
+        return self
 
 
 settings = Settings()
