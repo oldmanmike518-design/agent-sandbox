@@ -26,3 +26,4 @@ class MessageOut(BaseModel):
 class InboxResponse(BaseModel):
     items: list[MessageOut]
     next_before_id: int | None
+    next_after_id: int | None = None

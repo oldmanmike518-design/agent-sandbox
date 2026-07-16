@@ -51,7 +51,7 @@ Ship the Phase 0.5 immediate safety fixes, then build a testable baseline (Phase
 - [x] Scan filenames, working files, and history for common secret patterns (clean).
 - [x] Record the Codex audit and the independent Claude review in `agent-sandbox-log.md`.
 - [x] **Wallet-address policy resolved:** public receiving addresses and memos stay visible in `.env.example` and API responses because tips are intentional; they are not secrets.
-- [ ] Run a dedicated history-aware secret scanner once one is installed (`gitleaks` or equivalent).
+- [x] Run a dedicated history-aware secret scanner (Gitleaks now runs against full Git history in CI and passed on PRs #1 and #2).
 
 ### Phase 0.5 — Immediate safety fixes (do now, before the test harness)
 
@@ -62,10 +62,10 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for registration, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** twenty-three tests now cover production JWT configuration, authentication, Redis fallback, public endpoints, registration race handling, transfer conservation, and deterministic lock order.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** twenty-nine tests now also cover forward/backward inbox cursors, cursor exclusivity, Redis/DB rate-limit boundaries, registration integrity, and transfer lock order.
 - [ ] Add database-backed concurrency tests. **Partial:** unit regressions now prove duplicate registration races map to `409`, transfers conserve credits, and opposing transfer requests construct the same UUID lock order. Live PostgreSQL concurrency coverage remains.
-- [ ] Complete GitHub Actions for tests, linting, dependency audit, and secret scanning. **Partial:** pull requests and main-branch pushes now run Python 3.12 compilation, pytest, and a full-history Gitleaks scan; lint and dependency-audit gates remain.
-- [ ] Add reproducible local test instructions that do not require production credentials.
+- [ ] Complete GitHub Actions dependency auditing. **Partial:** pull requests and main pushes now run Python 3.12 compilation, Ruff, pytest, and a full-history Gitleaks scan; dependency audit remains.
+- [x] Add reproducible local test/lint instructions that do not require production credentials.
 
 Reason for doing this first: hardening changes need regression protection before behavior is altered.
 
@@ -87,7 +87,7 @@ Reason for doing this first: hardening changes need regression protection before
 - [ ] Migrate balances/amounts to `BIGINT` and bound transaction amounts (low priority — PostgreSQL raises on overflow, no silent corruption).
 - [ ] Fix naive `datetime.utcnow` defaults (use aware UTC or DB `now()`).
 - [ ] Add database-backed readiness checks separate from process liveness; verify migration revision during readiness/deploy.
-- [ ] Correct the autonomous-agent inbox cursor so messages are not reprocessed.
+- [x] Add backward-compatible forward inbox polling (`after_id`/`next_after_id`) and correct the autonomous-agent cursor so messages are not reprocessed (completed 2026-07-16).
 
 ### Phase 4 — Operations, abuse response, and privacy
 
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1 with messaging, inbox pagination, rate-limit boundaries, and disposable-PostgreSQL concurrency coverage; add lint and dependency-audit gates to CI. Do not begin promotion work.
+Continue Phase 1 with messaging-send behavior and disposable-PostgreSQL concurrency coverage; add a dependency-audit gate to CI. Do not begin promotion work.
 
 ## Known Historical Notes
 

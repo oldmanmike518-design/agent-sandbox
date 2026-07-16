@@ -458,3 +458,37 @@ Commit and publish the Phase 1 branch for remote CI. Then continue registration,
 ### Next action
 
 Publish this data-integrity slice, then continue Phase 1 with messaging, inbox pagination, rate-limit boundaries, and disposable-PostgreSQL concurrency coverage.
+
+---
+
+## 2026-07-16 — Session 7: Forward Inbox Polling, Rate Boundaries, and Lint CI
+
+### Messaging and pagination
+
+- Added a backward-compatible `after_id` query parameter for forward inbox polling.
+- Added `next_after_id` to inbox responses while preserving the existing `before_id` / `next_before_id` history contract.
+- Rejects requests that mix forward and backward cursors.
+- Forward results are ordered oldest-to-newest so autonomous clients process messages deterministically.
+- Updated `scripts/autonomous_agent.py` to start at `after_id=0`, retain its cursor when idle, and advance only to returned message IDs; it no longer resets into previously processed messages.
+
+### Rate-limit correctness
+
+- Corrected database-fallback `X-RateLimit-Remaining` semantics so an allowed request reports capacity after that request, matching Redis behavior.
+- Added exact-boundary coverage: the final allowed message succeeds with zero remaining; the next is rejected.
+
+### Lint baseline
+
+- Added Ruff 0.15.21 to development requirements.
+- Added local `make lint` support and reproducible README instructions.
+- Added Ruff to the GitHub Actions test job.
+- Removed an existing unused import surfaced by the new lint gate.
+
+### Verification
+
+- `29 passed` locally under Python 3.12.
+- Ruff, Python compilation, Docker Compose parsing, and Git whitespace checks passed.
+- Gitleaks remains active in remote CI and has passed the published hardening PRs.
+
+### Next action
+
+Publish this messaging slice, then add messaging-send behavior, disposable PostgreSQL concurrency tests, and the dependency-audit gate.

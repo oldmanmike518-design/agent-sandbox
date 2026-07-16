@@ -27,7 +27,10 @@ def main() -> None:
 
         print(f"Registered {NAME} ({agent_id})")
 
-        before_id = None
+        # Forward cursor for polling. Starting at zero is safe for a newly
+        # registered agent and prevents already-processed messages from being
+        # returned again.
+        after_id = 0
         while True:
             # ping
             try:
@@ -36,9 +39,7 @@ def main() -> None:
                 pass
 
             # inbox
-            params = {"limit": 50}
-            if before_id:
-                params["before_id"] = before_id
+            params = {"limit": 50, "after_id": after_id}
 
             r = client.get(f"{BASE_URL}/message/inbox", headers=headers, params=params, timeout=20)
             if r.status_code == 200:
@@ -69,8 +70,10 @@ def main() -> None:
                         timeout=20,
                     )
 
-                # next cursor
-                before_id = data.get("next_before_id")
+                # Advance only when messages were returned; otherwise retain
+                # the last processed id for the next poll.
+                if data.get("next_after_id") is not None:
+                    after_id = data["next_after_id"]
 
             time.sleep(POLL_SECONDS)
 

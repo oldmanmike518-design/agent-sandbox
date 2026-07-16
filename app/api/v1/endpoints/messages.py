@@ -102,13 +102,23 @@ async def inbox(
     session: AsyncSession = Depends(get_session),
     limit: int = Query(default=50, ge=1, le=200),
     before_id: int | None = Query(default=None, ge=1),
+    after_id: int | None = Query(default=None, ge=0),
 ):
+    if before_id is not None and after_id is not None:
+        raise HTTPException(status_code=400, detail="Use either before_id or after_id, not both")
+
     q = select(Message).where(
         (Message.recipient_id == agent.id) | (Message.is_broadcast.is_(True))
-    ).order_by(Message.id.desc()).limit(limit)
+    )
 
     if before_id is not None:
         q = q.where(Message.id < before_id)
+    if after_id is not None:
+        q = q.where(Message.id > after_id).order_by(Message.id.asc())
+    else:
+        q = q.order_by(Message.id.desc())
+
+    q = q.limit(limit)
 
     rows = (await session.execute(q)).scalars().all()
     items = [
@@ -124,5 +134,10 @@ async def inbox(
         for m in rows
     ]
 
-    next_before = items[-1].id if len(items) == limit else None
-    return InboxResponse(items=items, next_before_id=next_before)
+    next_before = items[-1].id if after_id is None and len(items) == limit else None
+    next_after = items[-1].id if after_id is not None and items else None
+    return InboxResponse(
+        items=items,
+        next_before_id=next_before,
+        next_after_id=next_after,
+    )
