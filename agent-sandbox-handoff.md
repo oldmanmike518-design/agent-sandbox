@@ -62,8 +62,8 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-three tests now also cover direct and broadcast sends, strict recipient validation, rate-limit rejection headers, forward/backward inbox cursors, Redis/DB rate-limit boundaries, registration integrity, and transfer lock order.
-- [ ] Add database-backed concurrency tests. **Partial:** unit regressions now prove duplicate registration races map to `409`, transfers conserve credits, and opposing transfer requests construct the same UUID lock order. Live PostgreSQL concurrency coverage remains.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-four local tests plus five disposable-service integration tests now cover direct and broadcast sends, strict recipient validation, rate-limit headers, inbox filters/cursors, Redis/DB rate-limit boundaries, registration integrity, and transfer behavior. Health/readiness coverage remains.
+- [x] Add database-backed concurrency tests. Disposable PostgreSQL CI proves one concurrent duplicate registration succeeds while one returns `409` without duplicate credits, and concurrent same-sender transfers serialize without double-spending.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
 
@@ -85,7 +85,7 @@ Reason for doing this first: hardening changes need regression protection before
 - [x] Catch case-insensitive duplicate-registration races, roll back the failed transaction, and return `409` (completed 2026-07-16).
 - [ ] Make database-fallback rate limiting concurrency-safe (atomic counter).
 - [ ] Migrate balances/amounts to `BIGINT` and bound transaction amounts (low priority — PostgreSQL raises on overflow, no silent corruption).
-- [ ] Fix naive `datetime.utcnow` defaults (use aware UTC or DB `now()`).
+- [x] Fix naive `datetime.utcnow` defaults (completed 2026-07-16 with a shared aware-UTC default; exercised by deprecations-as-errors PostgreSQL integration inserts).
 - [ ] Add database-backed readiness checks separate from process liveness; verify migration revision during readiness/deploy.
 - [x] Add backward-compatible forward inbox polling (`after_id`/`next_after_id`) and correct the autonomous-agent cursor so messages are not reprocessed (completed 2026-07-16).
 
@@ -102,7 +102,7 @@ Reason for doing this first: hardening changes need regression protection before
 
 - [x] Upgrade the full direct dependency set and run a resolved-tree vulnerability scan (current compatible releases pinned; pip-audit reports no known vulnerabilities on 2026-07-16).
 - [ ] Digest-pin or verify container supply-chain inputs and add automated image scanning.
-- [ ] Run end-to-end tests against disposable PostgreSQL and Redis.
+- [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs five live integration tests; full authenticated HTTP end-to-end flows remain.
 - [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results.
 - [ ] Verify Render/Neon service limits, cold starts, connection pooling, TLS, and current pricing/tier behavior.
 
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1 with a separate disposable-PostgreSQL/Redis CI job, migrations, and live concurrency/inbox coverage. Then begin the smallest safe Phase 2 registration-abuse-control slice. In parallel, verify the manually created Render service's source, branch, auto-deploy setting, and deployed commit in the dashboard; `render.yaml` is not authoritative for that service. Do not begin promotion work.
+Begin the smallest safe Phase 2 registration-abuse-control slice: atomic global/IP limits, trusted client-address handling, `429`/`Retry-After`, and a defined Redis-down fallback. Add full HTTP integration flows alongside that behavior. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, and deployed commit because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
 
 ## Known Historical Notes
 
