@@ -32,6 +32,12 @@ services:
         value: "3600"
       - key: RATE_LIMIT_BUCKET_RETENTION_SECONDS
         value: "86400"
+      - key: WRITE_IP_LIMIT_PER_MINUTE
+        value: "60"
+      - key: WRITE_GLOBAL_LIMIT_PER_MINUTE
+        value: "600"
+      - key: WRITE_LIMIT_WINDOW_SECONDS
+        value: "60"
       - key: MESSAGE_LIMIT_PER_HOUR
         value: "100"
       - key: MAX_MESSAGE_CHARS

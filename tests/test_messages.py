@@ -14,6 +14,7 @@ from app.models.agent import Agent
 from app.models.event_log import EventLog
 from app.models.message import Message
 from app.schemas.message import MessageSendRequest
+from app.services.abuse_control import RateLimitDecision
 
 
 class _Scalars:
@@ -118,7 +119,14 @@ def _set_message_limit(
     async def _limit(*_args: object, **_kwargs: object) -> tuple[bool, int, int]:
         return allowed, remaining, reset_seconds
 
+    async def _write_limit(
+        *_args: object,
+        **_kwargs: object,
+    ) -> RateLimitDecision:
+        return RateLimitDecision(True, "write-ip", 60, 59, 60)
+
     monkeypatch.setattr("app.api.v1.endpoints.messages.enforce_message_limit", _limit)
+    monkeypatch.setattr("app.api.v1.endpoints.messages.consume_write_limit", _write_limit)
 
 
 def test_message_request_rejects_unknown_and_ambiguous_recipient_fields() -> None:
@@ -213,9 +221,41 @@ def test_rate_limit_rejection_carries_headers_and_writes_nothing(
         "X-RateLimit-Limit": str(settings.MESSAGE_LIMIT_PER_HOUR),
         "X-RateLimit-Remaining": "0",
         "X-RateLimit-Reset": "42",
+        "X-RateLimit-Scope": "message-agent",
     }
     assert session.added == []
     assert session.committed is False
+
+
+def test_shared_write_limit_rejects_before_agent_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _denied(*_args: object, **_kwargs: object) -> RateLimitDecision:
+        return RateLimitDecision(False, "write-ip", 60, 0, 11)
+
+    async def _unexpected_agent_limit(*_args: object, **_kwargs: object):
+        raise AssertionError("per-agent limiter must not run after shared denial")
+
+    monkeypatch.setattr("app.api.v1.endpoints.messages.consume_write_limit", _denied)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.messages.enforce_message_limit",
+        _unexpected_agent_limit,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            send_message(
+                MessageSendRequest(content="blocked"),
+                _request(),
+                Response(),
+                agent=_agent(),
+                session=_MessageSession(),
+            )
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "11"
+    assert exc_info.value.headers["X-RateLimit-Scope"] == "write-ip"
 
 
 def test_inbox_rejects_mixed_forward_and_backward_cursors() -> None:

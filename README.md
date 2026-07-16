@@ -178,6 +178,8 @@ Important production settings:
 - `CORS_ORIGINS`
 - `REGISTRATION_IP_LIMIT_PER_HOUR`
 - `REGISTRATION_GLOBAL_LIMIT_PER_HOUR`
+- `WRITE_IP_LIMIT_PER_MINUTE`
+- `WRITE_GLOBAL_LIMIT_PER_MINUTE`
 
 The default environment is fail-closed production. Outside explicit development/test mode, startup rejects missing, placeholder, or shorter-than-32-byte JWT/admin secrets and JWT lifetimes above 90 days. Docker Compose supplies development-only values for local use; never reuse them in a public deployment.
 
@@ -199,7 +201,7 @@ See [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 - Generate a separate long random `ADMIN_API_KEY`; never reuse the JWT secret.
 - Keep real `.env` files out of git.
 - The Docker Compose credentials are for local development only.
-- Registration uses atomic per-client and global limits. Forwarded client addresses are ignored unless the immediate proxy matches an explicitly configured `TRUSTED_PROXY_CIDRS` network.
+- Registration and authenticated writes use atomic hierarchical per-client/global limits. Client-denied requests do not consume shared global capacity. Forwarded client addresses are ignored unless the immediate proxy matches an explicitly configured `TRUSTED_PROXY_CIDRS` network.
 - Internal credits are non-monetary and non-convertible; starting credits are a sandbox convenience, not an asset or payment.
 - Application rate limits are one layer; public deployments still need edge limits and monitoring.
 

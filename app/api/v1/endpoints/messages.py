@@ -9,6 +9,7 @@ from app.db.session import get_session
 from app.models.agent import Agent
 from app.models.message import Message
 from app.schemas.message import InboxResponse, MessageOut, MessageSendRequest
+from app.services.abuse_control import consume_write_limit
 from app.services.auth import get_current_agent
 from app.services.events import log_event
 from app.services.rate_limit import enforce_message_limit
@@ -30,14 +31,22 @@ async def send_message(
     if len(content) > settings.MAX_MESSAGE_CHARS:
         raise HTTPException(status_code=400, detail=f"Message too long (max {settings.MAX_MESSAGE_CHARS})")
 
+    write_decision = await consume_write_limit(request, session)
+    if not write_decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Shared write rate limit exceeded",
+            headers=write_decision.headers,
+        )
+
     # Rate limit per agent
     allowed, remaining, reset_seconds = await enforce_message_limit(agent.id, session)
     rate_limit_headers = {
         "X-RateLimit-Limit": str(settings.MESSAGE_LIMIT_PER_HOUR),
         "X-RateLimit-Remaining": str(remaining),
         "X-RateLimit-Reset": str(reset_seconds),
+        "X-RateLimit-Scope": "message-agent",
     }
-    response.headers.update(rate_limit_headers)
 
     if not allowed:
         raise HTTPException(
@@ -45,6 +54,13 @@ async def send_message(
             detail="Message rate limit exceeded",
             headers=rate_limit_headers,
         )
+
+    active_headers = (
+        write_decision.headers
+        if write_decision.remaining <= remaining
+        else rate_limit_headers
+    )
+    response.headers.update(active_headers)
 
     recipient_id = body.to_agent_id
     if recipient_id is None and body.to_agent_name:

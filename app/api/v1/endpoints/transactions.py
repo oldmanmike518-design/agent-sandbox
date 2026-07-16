@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,7 @@ from app.db.session import get_session
 from app.models.agent import Agent
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionOut, TransactionSendRequest
+from app.services.abuse_control import consume_write_limit
 from app.services.auth import get_current_agent
 from app.services.events import log_event
 from app.services.tip_jar import build_tip_jar
@@ -19,11 +20,21 @@ router = APIRouter(prefix="/transaction")
 async def send_credits(
     body: TransactionSendRequest,
     request: Request,
+    response: Response,
     agent: Agent = Depends(get_current_agent),
     session: AsyncSession = Depends(get_session),
 ):
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be > 0")
+
+    write_decision = await consume_write_limit(request, session)
+    response.headers.update(write_decision.headers)
+    if not write_decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Shared write rate limit exceeded",
+            headers=write_decision.headers,
+        )
 
     recipient_id = body.to_agent_id
     if recipient_id is None and body.to_agent_name:
