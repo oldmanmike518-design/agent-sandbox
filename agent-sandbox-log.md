@@ -860,6 +860,11 @@ After the corrected CORS value triggered the final deploy, Render showed the sam
 - Added the promotion command center to the repository.
 - Preserved Sessions 1–15 unchanged.
 
+### Publication record
+
+- Documentation closeout commit `dcb9986` was pushed on `agent/session-16-launch-handoff`.
+- Opened GitHub PR #16, `docs: close out deployment and open controlled seed`, targeting `main`.
+
 ### Remaining operational work
 
 1. Schedule the daily event-retention purge.
