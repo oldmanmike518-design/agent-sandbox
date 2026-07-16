@@ -24,6 +24,8 @@ services:
         value: "100"
       - key: REGISTRATION_LIMIT_WINDOW_SECONDS
         value: "3600"
+      - key: RATE_LIMIT_BUCKET_RETENTION_SECONDS
+        value: "86400"
       - key: MESSAGE_LIMIT_PER_HOUR
         value: "100"
       - key: MAX_MESSAGE_CHARS

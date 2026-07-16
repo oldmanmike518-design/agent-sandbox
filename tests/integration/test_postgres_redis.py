@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from collections.abc import AsyncIterator
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException, Request, Response
@@ -20,6 +21,7 @@ from app.api.v1.endpoints.transactions import send_credits
 from app.core.config import settings
 from app.models.agent import Agent
 from app.models.message import Message
+from app.models.rate_limit_bucket import RateLimitBucket
 from app.schemas.agent import RegisterRequest, RegisterResponse
 from app.schemas.transaction import TransactionSendRequest
 from app.services.abuse_control import consume_registration_limit
@@ -32,14 +34,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _request(path: str) -> Request:
+def _request(path: str, client_ip: str = "127.0.0.1") -> Request:
     return Request(
         {
             "type": "http",
             "method": "POST",
             "path": path,
             "headers": [],
-            "client": ("127.0.0.1", 12345),
+            "client": (client_ip, 12345),
         }
     )
 
@@ -172,14 +174,78 @@ def test_database_registration_limit_is_atomic_under_concurrency() -> None:
                         ip_limit=5,
                         global_limit=100,
                         window_seconds=60,
-                        use_redis=False,
                     )
                     return decision.allowed
 
             results = await asyncio.gather(*(_consume() for _ in range(20)))
 
+            async with session_factory() as session:
+                buckets = {
+                    bucket.bucket_key: bucket.count
+                    for bucket in (
+                        await session.execute(select(RateLimitBucket))
+                    ).scalars()
+                }
+
+            async with session_factory() as session:
+                second_client = await consume_registration_limit(
+                    _request("/register", "127.0.0.2"),
+                    session,
+                    ip_limit=5,
+                    global_limit=6,
+                    window_seconds=60,
+                )
+
+            async with session_factory() as session:
+                global_count = (
+                    await session.get(RateLimitBucket, "registration:global")
+                ).count
+
             assert results.count(True) == 5
             assert results.count(False) == 15
+            assert buckets["registration:global"] == 5
+            assert max(
+                count
+                for key, count in buckets.items()
+                if key.startswith("registration:ip:")
+            ) == 20
+            assert second_client.allowed is True
+            assert second_client.scope == "registration-global"
+            assert second_client.remaining == 0
+            assert global_count == 6
+
+    asyncio.run(_run())
+
+
+def test_expired_registration_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "RATE_LIMIT_BUCKET_RETENTION_SECONDS", 0)
+
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                session.add(
+                    RateLimitBucket(
+                        bucket_key="registration:ip:expired",
+                        count=50,
+                        window_ends_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+                    )
+                )
+                await session.commit()
+
+            async with session_factory() as session:
+                await consume_registration_limit(
+                    _request("/register"),
+                    session,
+                    ip_limit=5,
+                    global_limit=100,
+                    window_seconds=60,
+                )
+
+            async with session_factory() as session:
+                assert (
+                    await session.get(RateLimitBucket, "registration:ip:expired")
+                ) is None
 
     asyncio.run(_run())
 

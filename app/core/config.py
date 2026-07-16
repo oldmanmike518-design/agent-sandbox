@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     REGISTRATION_IP_LIMIT_PER_HOUR: int = Field(default=5, ge=1)
     REGISTRATION_GLOBAL_LIMIT_PER_HOUR: int = Field(default=100, ge=1)
     REGISTRATION_LIMIT_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
+    RATE_LIMIT_BUCKET_RETENTION_SECONDS: int = Field(default=86400, ge=0, le=604800)
     TRUSTED_PROXY_CIDRS: str = ""
     MESSAGE_LIMIT_PER_HOUR: int = 100
     MAX_MESSAGE_CHARS: int = 2000

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hmac
-import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -9,35 +8,12 @@ from hashlib import sha256
 from ipaddress import ip_address
 
 from fastapi import Request
-from redis.exceptions import RedisError
-from sqlalchemy import case
+from sqlalchemy import case, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.rate_limit_bucket import RateLimitBucket
-from app.services.rate_limit import close_redis, get_redis
-
-
-logger = logging.getLogger(__name__)
-
-_REDIS_BUCKET_SCRIPT = """
-local result = {}
-for i, key in ipairs(KEYS) do
-  local count = redis.call('INCR', key)
-  if count == 1 then
-    redis.call('PEXPIRE', key, ARGV[1])
-  end
-  local ttl = redis.call('PTTL', key)
-  if ttl < 0 then
-    redis.call('PEXPIRE', key, ARGV[1])
-    ttl = tonumber(ARGV[1])
-  end
-  table.insert(result, count)
-  table.insert(result, ttl)
-end
-return result
-"""
 
 
 @dataclass(frozen=True)
@@ -119,33 +95,42 @@ def _registration_rules(
     ]
 
 
-async def _consume_redis(
-    rules: list[_LimitRule],
+async def _consume_rule(
+    session: AsyncSession,
+    rule: _LimitRule,
     *,
+    now: datetime,
     window_seconds: int,
-) -> list[tuple[int, int]] | None:
-    try:
-        redis_client = await get_redis()
-        if redis_client is None:
-            return None
-        keys = [f"abuse:{rule.bucket_key}" for rule in rules]
-        raw = await redis_client.eval(
-            _REDIS_BUCKET_SCRIPT,
-            len(keys),
-            *keys,
-            window_seconds * 1000,
-        )
-        return [
-            (int(raw[index]), max(1, math.ceil(int(raw[index + 1]) / 1000)))
-            for index in range(0, len(raw), 2)
-        ]
-    except (RedisError, OSError, TimeoutError):
-        logger.warning(
-            "Redis registration limiter unavailable; using database fallback",
-            exc_info=True,
-        )
-        await close_redis()
-        return None
+) -> RegistrationLimitDecision:
+    new_window_end = now + timedelta(seconds=window_seconds)
+    reset_window = RateLimitBucket.window_ends_at <= now
+    statement = insert(RateLimitBucket).values(
+        bucket_key=rule.bucket_key,
+        count=1,
+        window_ends_at=new_window_end,
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=[RateLimitBucket.bucket_key],
+        set_={
+            "count": case(
+                (reset_window, 1),
+                else_=RateLimitBucket.count + 1,
+            ),
+            "window_ends_at": case(
+                (reset_window, new_window_end),
+                else_=RateLimitBucket.window_ends_at,
+            ),
+        },
+    ).returning(RateLimitBucket.count, RateLimitBucket.window_ends_at)
+    count, window_ends_at = (await session.execute(statement)).one()
+    count = int(count)
+    return RegistrationLimitDecision(
+        allowed=count <= rule.limit,
+        scope=rule.scope,
+        limit=rule.limit,
+        remaining=max(0, rule.limit - count),
+        reset_seconds=max(1, math.ceil((window_ends_at - now).total_seconds())),
+    )
 
 
 async def _consume_database(
@@ -154,37 +139,29 @@ async def _consume_database(
     *,
     now: datetime,
     window_seconds: int,
-) -> list[tuple[int, int]]:
-    new_window_end = now + timedelta(seconds=window_seconds)
-    consumed: list[tuple[int, int]] = []
+) -> list[RegistrationLimitDecision]:
+    retention_cutoff = now - timedelta(seconds=settings.RATE_LIMIT_BUCKET_RETENTION_SECONDS)
+    await session.execute(
+        delete(RateLimitBucket).where(RateLimitBucket.window_ends_at < retention_cutoff)
+    )
+    await session.commit()
 
+    decisions: list[RegistrationLimitDecision] = []
     for rule in rules:
-        reset_window = RateLimitBucket.window_ends_at <= now
-        statement = insert(RateLimitBucket).values(
-            bucket_key=rule.bucket_key,
-            count=1,
-            window_ends_at=new_window_end,
+        decision = await _consume_rule(
+            session,
+            rule,
+            now=now,
+            window_seconds=window_seconds,
         )
-        statement = statement.on_conflict_do_update(
-            index_elements=[RateLimitBucket.bucket_key],
-            set_={
-                "count": case(
-                    (reset_window, 1),
-                    else_=RateLimitBucket.count + 1,
-                ),
-                "window_ends_at": case(
-                    (reset_window, new_window_end),
-                    else_=RateLimitBucket.window_ends_at,
-                ),
-            },
-        ).returning(RateLimitBucket.count, RateLimitBucket.window_ends_at)
-        count, window_ends_at = (await session.execute(statement)).one()
-        reset_seconds = max(1, math.ceil((window_ends_at - now).total_seconds()))
-        consumed.append((int(count), reset_seconds))
+        decisions.append(decision)
+        # An already-limited client must not consume the shared global budget.
+        if not decision.allowed:
+            break
 
     # Persist abuse counters independently of the later registration transaction.
     await session.commit()
-    return consumed
+    return decisions
 
 
 async def consume_registration_limit(
@@ -194,7 +171,6 @@ async def consume_registration_limit(
     ip_limit: int | None = None,
     global_limit: int | None = None,
     window_seconds: int | None = None,
-    use_redis: bool = True,
 ) -> RegistrationLimitDecision:
     ip_limit = ip_limit or settings.REGISTRATION_IP_LIMIT_PER_HOUR
     global_limit = global_limit or settings.REGISTRATION_GLOBAL_LIMIT_PER_HOUR
@@ -205,25 +181,13 @@ async def consume_registration_limit(
         global_limit=global_limit,
     )
 
-    consumed = None
-    if use_redis:
-        consumed = await _consume_redis(rules, window_seconds=window_seconds)
-    if consumed is None:
-        consumed = await _consume_database(
-            session,
-            rules,
-            now=datetime.now(timezone.utc),
-            window_seconds=window_seconds,
-        )
-
-    decisions = [
-        RegistrationLimitDecision(
-            allowed=count <= rule.limit,
-            scope=rule.scope,
-            limit=rule.limit,
-            remaining=max(0, rule.limit - count),
-            reset_seconds=reset_seconds,
-        )
-        for rule, (count, reset_seconds) in zip(rules, consumed, strict=True)
-    ]
-    return next((decision for decision in decisions if not decision.allowed), decisions[0])
+    decisions = await _consume_database(
+        session,
+        rules,
+        now=datetime.now(timezone.utc),
+        window_seconds=window_seconds,
+    )
+    denied = next((decision for decision in decisions if not decision.allowed), None)
+    if denied is not None:
+        return denied
+    return min(decisions, key=lambda decision: decision.remaining)
