@@ -62,8 +62,8 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for registration, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** sixteen tests now cover production JWT-secret rejection/acceptance, JWT claims and rejection paths, inactive-agent rejection, Redis-down database fallback, health, tip-jar, and homepage behavior.
-- [ ] Add concurrency tests: duplicate registration race (must return 409, not 500); concurrent same-sender debits must not oversend (double-spend regression guard); opposing transfers must not 500 after the deadlock-retry fix.
+- [ ] Expand pytest unit and integration coverage for registration, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** twenty-three tests now cover production JWT configuration, authentication, Redis fallback, public endpoints, registration race handling, transfer conservation, and deterministic lock order.
+- [ ] Add database-backed concurrency tests. **Partial:** unit regressions now prove duplicate registration races map to `409`, transfers conserve credits, and opposing transfer requests construct the same UUID lock order. Live PostgreSQL concurrency coverage remains.
 - [ ] Complete GitHub Actions for tests, linting, dependency audit, and secret scanning. **Partial:** pull requests and main-branch pushes now run Python 3.12 compilation, pytest, and a full-history Gitleaks scan; lint and dependency-audit gates remain.
 - [ ] Add reproducible local test instructions that do not require production credentials.
 
@@ -81,8 +81,8 @@ Reason for doing this first: hardening changes need regression protection before
 
 ### Phase 3 — Reliability and data-integrity hardening
 
-- [ ] Lock transfer participants in deterministic UUID order and retry deadlocks safely; map failure to a stable API response (not 500).
-- [ ] Catch case-insensitive duplicate-registration races and return `409`.
+- [ ] Lock transfer participants in deterministic UUID order and retry deadlocks safely; map failure to a stable API response (not 500). **Partial:** deterministic two-row locking is implemented and tested; bounded database retry remains.
+- [x] Catch case-insensitive duplicate-registration races, roll back the failed transaction, and return `409` (completed 2026-07-16).
 - [ ] Make database-fallback rate limiting concurrency-safe (atomic counter).
 - [ ] Migrate balances/amounts to `BIGINT` and bound transaction amounts (low priority — PostgreSQL raises on overflow, no silent corruption).
 - [ ] Fix naive `datetime.utcnow` defaults (use aware UTC or DB `now()`).
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1 with registration, messaging, transfer, pagination, and concurrency fixtures; add lint and dependency-audit gates to the new CI workflow. Do not begin promotion work.
+Continue Phase 1 with messaging, inbox pagination, rate-limit boundaries, and disposable-PostgreSQL concurrency coverage; add lint and dependency-audit gates to CI. Do not begin promotion work.
 
 ## Known Historical Notes
 

@@ -38,13 +38,23 @@ async def send_credits(
     if recipient_id == agent.id:
         raise HTTPException(status_code=400, detail="Cannot send credits to yourself")
 
-    # Lock both rows
-    sender_q = select(Agent).where(Agent.id == agent.id).with_for_update()
-    sender = (await session.execute(sender_q)).scalar_one()
+    # Lock both rows in a deterministic order so opposing transfers cannot
+    # deadlock by each holding its sender while waiting for its recipient.
+    participant_ids = sorted((agent.id, recipient_id), key=lambda value: value.int)
+    participants_q = (
+        select(Agent)
+        .where(Agent.id.in_(participant_ids))
+        .order_by(Agent.id)
+        .with_for_update()
+    )
+    participants = (await session.execute(participants_q)).scalars().all()
+    participants_by_id = {participant.id: participant for participant in participants}
 
-    recipient_q = select(Agent).where(Agent.id == recipient_id, Agent.is_active.is_(True)).with_for_update()
-    recipient = (await session.execute(recipient_q)).scalar_one_or_none()
-    if recipient is None:
+    sender = participants_by_id.get(agent.id)
+    recipient = participants_by_id.get(recipient_id)
+    if sender is None:
+        raise HTTPException(status_code=401, detail="Sender agent not found")
+    if recipient is None or not recipient.is_active:
         raise HTTPException(status_code=404, detail="Recipient agent not found")
 
     if sender.credits_balance < body.amount:
