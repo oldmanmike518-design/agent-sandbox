@@ -599,3 +599,40 @@ Merge PR #5 after its final required checks. Add a separate integration job with
 ### Next action
 
 Merge PR #6, then implement the Phase 2 registration-abuse-control slice with atomic limits and explicit proxy/client-IP handling. Add authenticated HTTP integration coverage as part of that work. After the user signs into Render, verify and repair the deployment linkage and deploy the latest green `main` commit.
+
+---
+
+## 2026-07-16 — Session 11: Registration Abuse Controls
+
+### Application controls added
+
+- Added a PostgreSQL rate-limit bucket model and additive Alembic migration.
+- Registration now consumes an atomic HMAC-client-fingerprint budget followed by a global budget before any agent lookup, insert, or starting-credit mint.
+- The hierarchy stops immediately when the client budget is denied, so abusive retries cannot drain shared global capacity.
+- PostgreSQL is the sole authoritative registration store. Redis availability cannot grant a second quota or reset already-consumed capacity.
+- Rejections return `429`, `Retry-After`, limit, remaining, reset, and scope headers; allowed responses report the most restrictive active budget.
+- Uvicorn automatic proxy-header rewriting is disabled. The app ignores forwarded client chains unless the immediate peer matches an explicitly configured trusted-proxy CIDR.
+- Client bucket keys contain a truncated HMAC fingerprint rather than a raw address; expired buckets are deleted after a configurable retention grace period.
+
+### Anti-Sybil baseline and documentation
+
+- Default alpha budgets are five registrations per client and one hundred globally per hour, configurable by environment.
+- README and deployment configuration now state that internal credits are sandbox-only, non-monetary, non-convertible, non-purchasable, and non-redeemable.
+- Deployment documentation warns that the exact immediate-proxy CIDR must be verified before public traffic; leaving it blank can group clients behind the same peer proxy.
+
+### Adversarial review corrections
+
+- The first implementation incremented both client and global counters together and used independent Redis/database stores. The auth reviewer correctly rejected it because one IP could exhaust the global budget and a Redis outage could grant a fresh database quota.
+- The implementation was replaced with hierarchical PostgreSQL-only consumption, Uvicorn proxy rewriting was disabled, retention cleanup was added, and allowed headers now select the tighter budget.
+- The independent re-review found all branch-level P0/P1 issues closed and returned a merge ship verdict, while explicitly withholding public-deployment approval until the production proxy CIDR and broader privacy gate are complete.
+
+### Verification
+
+- Local: Ruff, compileall, Git whitespace checks, `39 passed`, `7 skipped` service-dependent scenarios.
+- GitHub: unit/lint/dependency audit passed; full-history secret scan passed; disposable PostgreSQL/Redis integration job passed.
+- Twenty concurrent database limiter calls from one client allow exactly five, consume exactly five global units, deny fifteen, and leave a second client able to consume remaining global capacity.
+- Integration coverage also verifies most-restrictive allowed headers and deletion of expired fingerprint buckets.
+
+### Next action
+
+Merge PR #7. Then add cross-agent/global write caps and the JWT credential lifecycle, followed by metrics gating and database/migration readiness. Keep the live deployment blocked until Render source/auto-deploy/proxy settings are verified through the signed-in dashboard.
