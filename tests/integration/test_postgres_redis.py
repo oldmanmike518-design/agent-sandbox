@@ -124,6 +124,7 @@ def test_duplicate_registration_is_safe_under_concurrency() -> None:
                         return exc
 
             results = await asyncio.gather(_register(), _register())
+            await close_redis()
             successes = [result for result in results if isinstance(result, RegisterResponse)]
             conflicts = [
                 result
