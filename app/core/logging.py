@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 
 def configure_logging(level: str = "INFO") -> None:
@@ -10,7 +10,7 @@ def configure_logging(level: str = "INFO") -> None:
     root.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
-    formatter = jsonlogger.JsonFormatter(
+    formatter = JsonFormatter(
         "%(asctime)s %(levelname)s %(name)s %(message)s",
         rename_fields={"levelname": "level", "asctime": "ts"},
     )

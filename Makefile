@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-unit lint fmt
+.PHONY: up down logs test test-unit lint audit fmt
 
 up:
 	docker compose up --build
@@ -17,3 +17,6 @@ test-unit:
 
 lint:
 	.venv/bin/python -m ruff check app scripts tests
+
+audit:
+	.venv/bin/python -m pip_audit --cache-dir /tmp/pip-audit-cache -r requirements.txt

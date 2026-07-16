@@ -1,23 +1,28 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import asyncio
+
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
 
-client = TestClient(app)
+async def _request(method: str, path: str):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        return await client.request(method, path)
 
 
 def test_healthz_is_reachable() -> None:
-    response = client.get("/healthz")
+    response = asyncio.run(_request("GET", "/healthz"))
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
 def test_tip_jar_is_reachable_by_get_and_post() -> None:
-    get_response = client.get("/transaction/tip")
-    post_response = client.post("/transaction/tip")
+    get_response = asyncio.run(_request("GET", "/transaction/tip"))
+    post_response = asyncio.run(_request("POST", "/transaction/tip"))
 
     assert get_response.status_code == 200
     assert post_response.status_code == 200
@@ -26,7 +31,7 @@ def test_tip_jar_is_reachable_by_get_and_post() -> None:
 
 
 def test_root_links_to_configured_docs() -> None:
-    response = client.get("/")
+    response = asyncio.run(_request("GET", "/"))
 
     assert response.status_code == 200
     assert "http://localhost:8000/docs" in response.text

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, ORJSONResponse
+from fastapi.responses import HTMLResponse
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -10,6 +12,12 @@ from app.api.v1.router import router as api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.services.rate_limit import close_redis
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    await close_redis()
 
 
 def create_app() -> FastAPI:
@@ -22,7 +30,7 @@ def create_app() -> FastAPI:
             "All interactions are logged. The data is the point."
         ),
         version="1.0.0",
-        default_response_class=ORJSONResponse,
+        lifespan=lifespan,
     )
 
     # CORS
@@ -94,10 +102,6 @@ def create_app() -> FastAPI:
 
     # Metrics
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
-    @app.on_event("shutdown")
-    async def _shutdown():
-        await close_redis()
 
     return app
 
