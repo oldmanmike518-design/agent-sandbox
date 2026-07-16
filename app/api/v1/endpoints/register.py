@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -39,7 +40,11 @@ async def register_agent(
 
     agent = Agent(name=name, description=description, credits_balance=settings.STARTING_CREDITS)
     session.add(agent)
-    await session.flush()  # assigns agent.id
+    try:
+        await session.flush()  # assigns agent.id
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Agent name already taken")
 
     token = create_jwt(agent.id, agent.name)
 

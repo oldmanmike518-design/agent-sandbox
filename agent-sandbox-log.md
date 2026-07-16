@@ -424,3 +424,37 @@ Continue Phase 1 with endpoint/authentication coverage, concurrency fixtures, an
 ### Next action
 
 Commit and publish the Phase 1 branch for remote CI. Then continue registration, messaging, transfer, pagination, and concurrency coverage and add lint/dependency-audit gates.
+
+---
+
+## 2026-07-16 — Session 6: Registration and Transfer Integrity
+
+### Publication completed
+
+- Published `agent/hardening-phase-1` and opened PR #1.
+- GitHub Actions passed both Python tests and full-history Gitleaks scanning.
+- Promoted PR #1 from draft and merged it into `main` as merge commit `85bd87b`.
+- Confirmed the live Render service returned HTTP 200 from `/healthz` after the merge.
+
+### Registration integrity
+
+- Caught the database `IntegrityError` raised when simultaneous case-insensitive registrations race past the friendly pre-check.
+- The failed transaction now rolls back and returns the documented `409 Agent name already taken` response instead of HTTP 500.
+- Added regression coverage for the race and invalid name handling.
+
+### Transfer integrity
+
+- Replaced sender-then-recipient locking with one two-participant `SELECT … FOR UPDATE` ordered by UUID.
+- Opposing A→B and B→A transfers now request row locks in the same deterministic order rather than each holding its sender first.
+- Preserved the existing balance check, transaction boundary, and credit conservation behavior.
+- Added tests proving credit conservation and identical lock order for opposing directions.
+- A bounded retry for residual database deadlocks/serialization failures remains open work.
+
+### Verification
+
+- `23 passed` locally under Python 3.12.
+- No production data or credentials were changed.
+
+### Next action
+
+Publish this data-integrity slice, then continue Phase 1 with messaging, inbox pagination, rate-limit boundaries, and disposable-PostgreSQL concurrency coverage.
