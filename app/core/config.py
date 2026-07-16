@@ -52,6 +52,18 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "*"
 
+    # Host header allowlist (comma-separated). "*" allows any host. When a
+    # specific list is set, loopback hosts are always appended so container and
+    # local health probes are never rejected.
+    ALLOWED_HOSTS: str = "*"
+
+    # Maximum accepted request body size in bytes (declared Content-Length).
+    MAX_REQUEST_BYTES: int = Field(default=65536, ge=1024, le=10_485_760)
+
+    # Strict-Transport-Security max-age in seconds. 0 disables the header;
+    # enable it only on a dedicated custom domain served over HTTPS.
+    SECURITY_HSTS_SECONDS: int = Field(default=0, ge=0, le=63072000)
+
     @property
     def cors_origins_list(self) -> List[str]:
         raw = self.CORS_ORIGINS.strip()
@@ -60,6 +72,17 @@ class Settings(BaseSettings):
         if raw == "*":
             return ["*"]
         return [x.strip() for x in raw.split(",") if x.strip()]
+
+    @property
+    def allowed_hosts_list(self) -> List[str]:
+        raw = self.ALLOWED_HOSTS.strip()
+        if not raw or raw == "*":
+            return ["*"]
+        hosts = [h.strip() for h in raw.split(",") if h.strip()]
+        for loopback in ("localhost", "127.0.0.1"):
+            if loopback not in hosts:
+                hosts.append(loopback)
+        return hosts
 
     @field_validator("DATABASE_URL")
     @classmethod

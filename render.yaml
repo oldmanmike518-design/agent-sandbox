@@ -24,6 +24,12 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: "*"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: MAX_REQUEST_BYTES
+        value: "65536"
+      - key: SECURITY_HSTS_SECONDS
+        value: "0"
       - key: STARTING_CREDITS
         value: "1000"
       - key: REGISTRATION_IP_LIMIT_PER_HOUR
