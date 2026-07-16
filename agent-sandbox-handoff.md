@@ -64,7 +64,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 - [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** twenty-nine tests now also cover forward/backward inbox cursors, cursor exclusivity, Redis/DB rate-limit boundaries, registration integrity, and transfer lock order.
 - [ ] Add database-backed concurrency tests. **Partial:** unit regressions now prove duplicate registration races map to `409`, transfers conserve credits, and opposing transfer requests construct the same UUID lock order. Live PostgreSQL concurrency coverage remains.
-- [ ] Complete GitHub Actions dependency auditing. **Partial:** pull requests and main pushes now run Python 3.12 compilation, Ruff, pytest, and a full-history Gitleaks scan; dependency audit remains.
+- [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
 
 Reason for doing this first: hardening changes need regression protection before behavior is altered.
@@ -100,7 +100,7 @@ Reason for doing this first: hardening changes need regression protection before
 
 ### Phase 5 — Dependency and capacity verification
 
-- [ ] Upgrade the dependency set (including PyJWT, as hygiene) and run a resolved-tree vulnerability scan.
+- [x] Upgrade the full direct dependency set and run a resolved-tree vulnerability scan (current compatible releases pinned; pip-audit reports no known vulnerabilities on 2026-07-16).
 - [ ] Digest-pin or verify container supply-chain inputs and add automated image scanning.
 - [ ] Run end-to-end tests against disposable PostgreSQL and Redis.
 - [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results.
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1 with messaging-send behavior and disposable-PostgreSQL concurrency coverage; add a dependency-audit gate to CI. Do not begin promotion work.
+Continue Phase 1 with messaging-send behavior and disposable-PostgreSQL concurrency coverage. Investigate why the Render service has not yet exposed the merged `after_id` OpenAPI contract. Do not begin promotion work.
 
 ## Known Historical Notes
 

@@ -33,8 +33,11 @@ jobs:
       - name: Lint Python
         run: python -m ruff check app scripts tests
 
+      - name: Audit Python dependencies
+        run: python -m pip_audit --cache-dir /tmp/pip-audit-cache -r requirements.txt
+
       - name: Run tests
-        run: python -m pytest -q
+        run: python -W error::DeprecationWarning -m pytest -q
 
   secret-scan:
     runs-on: ubuntu-latest

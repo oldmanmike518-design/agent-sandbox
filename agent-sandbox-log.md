@@ -492,3 +492,43 @@ Publish this data-integrity slice, then continue Phase 1 with messaging, inbox p
 ### Next action
 
 Publish this messaging slice, then add messaging-send behavior, disposable PostgreSQL concurrency tests, and the dependency-audit gate.
+
+---
+
+## 2026-07-16 — Session 8: Dependency Upgrade and Audit Gate
+
+### Audit findings and remediation
+
+- Installed pip-audit 2.10.1 and added it to development requirements.
+- The pre-upgrade audit found 23 advisory matches concentrated in PyJWT 2.10.1, orjson 3.10.12, and Starlette 0.41.3 from the old FastAPI pin.
+- Upgraded the full direct runtime set to current compatible releases, including FastAPI 0.139.1, Starlette 1.3.1, PyJWT 2.13.0, orjson 3.11.9, SQLAlchemy 2.0.51, Redis 8.0.1, and related framework/observability packages.
+- The post-upgrade audit reports **no known vulnerabilities**.
+
+### Compatibility cleanup
+
+- Migrated FastAPI shutdown handling from deprecated `on_event` registration to an application lifespan context.
+- Removed deprecated `ORJSONResponse` default usage; current FastAPI/Pydantic direct serialization is used.
+- Migrated python-json-logger to its current import path.
+- Replaced deprecated TestClient/httpx coupling in public endpoint tests with `httpx.AsyncClient` and `ASGITransport`.
+- CI now treats Python deprecation warnings as test failures.
+
+### CI and local tooling
+
+- Added `make audit` and README audit instructions.
+- Added pip-audit as a required GitHub Actions gate.
+- Kept Ruff, pytest, compilation, and full-history Gitleaks gates.
+
+### Verification
+
+- `29 passed` with deprecation warnings treated as errors.
+- Ruff and Python compilation passed.
+- pip-audit reports no known vulnerabilities.
+- Docker Compose parsing and Git whitespace checks passed.
+
+### Deployment observation
+
+- PR #3 passed remote CI/Gitleaks and merged, but repeated live OpenAPI probes still showed only `limit` and `before_id`; the new `after_id` contract had not propagated to Render at observation time. Live health remained available. Deployment trigger/status needs investigation rather than assuming `autoDeploy` succeeded.
+
+### Next action
+
+Publish the dependency/audit slice, verify compatibility in remote CI, then diagnose or manually trigger the Render deployment and confirm the live OpenAPI schema.

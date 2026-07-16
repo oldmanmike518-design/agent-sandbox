@@ -137,6 +137,7 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q
 .venv/bin/python -m ruff check app scripts tests
+.venv/bin/python -m pip_audit --cache-dir /tmp/pip-audit-cache -r requirements.txt
 ```
 
 The focused test suite currently covers production JWT-secret validation, JWT authentication failures, inactive-agent rejection, Redis failure fallback, and core public endpoints. Deeper integration and concurrency coverage is tracked in `agent-sandbox-handoff.md`.
