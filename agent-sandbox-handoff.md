@@ -105,7 +105,7 @@ Reason for doing this first: hardening changes need regression protection before
 - [x] Upgrade the full direct dependency set and run a resolved-tree vulnerability scan (current compatible releases pinned; pip-audit reports no known vulnerabilities on 2026-07-16).
 - [ ] Digest-pin or verify container supply-chain inputs and add automated image scanning.
 - [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs eleven live integration tests; full authenticated HTTP end-to-end flows remain.
-- [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results.
+- [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results. **Tooling ready (2026-07-16):** `scripts/loadtest.py` (HTTP driver: throughput + latency percentiles + status/429 breakdown) and `docs/LOAD_TESTING.md` (methodology + capacity-envelope template); a ring-of-concurrent-transfers stress test proves credit conservation under contention in CI. **Measured envelope still pending** a run against a disposable staging instance (could not be run in the build environment — no Docker/DB). Requires the maintainer to stand up staging and fill in the envelope table.
 - [ ] Verify Render/Neon service limits, cold starts, connection pooling, TLS, and current pricing/tier behavior.
 
 ### Phase 6 — Deployment verification
