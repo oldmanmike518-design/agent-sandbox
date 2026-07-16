@@ -783,3 +783,87 @@ Captured in `DEPLOYMENT_HANDOFF.md`: redeploy Render to current `main` and set e
 ### Next action
 
 Maintainer works `DEPLOYMENT_HANDOFF.md` on the personal browser. Do not begin promotion.
+
+---
+
+## 2026-07-16 — Session 16: Production Deployment, Distribution Setup, and Closeout (Codex)
+
+The user reopened the personal Chrome profile, explicitly authorized Codex to take over the Render configuration/deployment work, and asked for a complete documented handoff ready for the next session.
+
+### GitHub distribution work
+
+- Updated the public repository description to lead with agent interoperability and testing against agents the builder did not create.
+- Set the repository homepage to the production Render URL.
+- Added discovery topics: `agent-interoperability`, `agent-testing`, `ai-agents`, `autonomous-agents`, `fastapi`, `llm`, `multi-agent-systems`, `openapi`, and `python`.
+- Prepared `PROMOTION-COMMAND-CENTER.md` with exact channel order, ready-to-paste AutoGen/CrewAI/LangGraph seed copy, later Reddit/Show HN copy, software-agent discovery/adapters, legitimate project-operated agent rules, success metrics, and monetization sequence.
+
+### Render account and service recovery
+
+- Confirmed the user has a Render account and located the manually created `agent-sandbox` Web Service.
+- Confirmed the service source is `oldmanmike518-design/agent-sandbox`, branch `main`.
+- Confirmed the production URL is https://agent-sandbox-xvx2.onrender.com and service ID is `srv-d7a57o15pdvs73c0g3cg`.
+- Identified that an old April commit was still deployed and that the previous health-path update had queued a stale build.
+- Canceled the stale old-code deployment so current `main` could proceed.
+
+### Production configuration
+
+Configured Render without displaying, logging, or committing secret values:
+
+- production environment mode;
+- strong, distinct JWT, admin, and metrics secrets;
+- 30-day JWT lifetime;
+- production base URL;
+- exact allowed host;
+- exact production CORS origin;
+- `/readyz` health-check path;
+- preserved database, owner message, and intentional public wallet receive configuration.
+
+The first live CORS check revealed the service was still returning wildcard access because the wrong masked environment row had retained `*`. Codex reopened the alphabetically ordered environment editor, replaced the exact `CORS_ORIGINS` row with the production origin, saved it, and allowed Render to rebuild current `main`.
+
+### Deployment result
+
+- PR #15 had merged the sprint documentation, making `1be6d96eb69114aea9256c625d0703e696915eb6` the current `main`.
+- Render deployed that commit successfully.
+- Final configuration deployment: `dep-d9cjsvt7vvec73einrrg`.
+- Final Render state: **Live**, 48.9-second deploy.
+- The service homepage opened successfully from the signed-in browser.
+
+### Live verification
+
+The following checks passed on the hardened build:
+
+- `/readyz` returned `200` with database available and schema current.
+- `/healthz` returned `200`.
+- unauthenticated `/metrics` returned `401`.
+- `/llms.txt`, `/.well-known/agent-manifest.json`, and `/openapi.json` returned `200`.
+- `/docs` returned `200`.
+- an invalid Host header returned `403`.
+- CSP, Permissions-Policy, Referrer-Policy, `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` were present.
+- the manifest used the production base URL and the OpenAPI snapshot contained 27 paths including forward inbox polling.
+- `/stats` remained at zero agents, messages, and transactions.
+
+After the corrected CORS value triggered the final deploy, Render showed the same current commit Live and the public homepage reopened. The managed shell/browser environment could not perform a second arbitrary-origin response-header probe, so the first real outside-builder integration should record that smoke check.
+
+### Launch decision
+
+- The engineering and deployment gate is complete.
+- The **controlled seed launch is open** for 3–5 genuine outside framework builders.
+- Fake registrations, fabricated agent traffic, and engagement manipulation remain prohibited.
+- Broad Reddit/Show HN promotion waits for five concrete items: scheduled retention, public contact, measured staging capacity, backup/alert ownership, and at least three real outside integrations.
+- The next session starts with seed recruitment and real interactions, not another general audit.
+
+### Documentation reconciliation
+
+- Replaced the stale “live old code / redeploy required” handoff with the exact current production state.
+- Converted `DEPLOYMENT_HANDOFF.md` from a to-do sheet into a completed deployment record plus remaining operations.
+- Updated `AGENTS.md`, the project brief, and the marketing plan so controlled seed outreach is open while broad promotion remains measured and gated.
+- Added the promotion command center to the repository.
+- Preserved Sessions 1–15 unchanged.
+
+### Remaining operational work
+
+1. Schedule the daily event-retention purge.
+2. Publish a dedicated data-controller contact.
+3. Measure and record a staging capacity envelope.
+4. Assign database backup/restore and alert owners.
+5. Complete real integrations with at least three outside framework builders.
