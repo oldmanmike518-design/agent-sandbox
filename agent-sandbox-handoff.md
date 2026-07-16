@@ -62,9 +62,9 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for registration, JWT authentication, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** seven focused tests now cover production JWT-secret rejection/acceptance and Redis-down database fallback.
+- [ ] Expand pytest unit and integration coverage for registration, messaging, pagination, transfers, rate limiting, health/readiness, and validation failures. **Partial:** sixteen tests now cover production JWT-secret rejection/acceptance, JWT claims and rejection paths, inactive-agent rejection, Redis-down database fallback, health, tip-jar, and homepage behavior.
 - [ ] Add concurrency tests: duplicate registration race (must return 409, not 500); concurrent same-sender debits must not oversend (double-spend regression guard); opposing transfers must not 500 after the deadlock-retry fix.
-- [ ] Add GitHub Actions for tests, linting, dependency audit, and secret scanning.
+- [ ] Complete GitHub Actions for tests, linting, dependency audit, and secret scanning. **Partial:** pull requests and main-branch pushes now run Python 3.12 compilation, pytest, and a full-history Gitleaks scan; lint and dependency-audit gates remain.
 - [ ] Add reproducible local test instructions that do not require production credentials.
 
 Reason for doing this first: hardening changes need regression protection before behavior is altered.
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 1: expand the focused test baseline into endpoint, authentication, integration, and concurrency coverage; then add GitHub Actions. Do not begin promotion work.
+Continue Phase 1 with registration, messaging, transfer, pagination, and concurrency fixtures; add lint and dependency-audit gates to the new CI workflow. Do not begin promotion work.
 
 ## Known Historical Notes
 

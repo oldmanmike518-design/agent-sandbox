@@ -389,3 +389,38 @@ Execute the handoff's Phase 0.5 immediate safety fixes, then Phase 1 tests/CI, b
 ### Next action
 
 Continue Phase 1 with endpoint/authentication coverage, concurrency fixtures, and GitHub Actions. Keep all promotion work blocked behind the launch gate.
+
+---
+
+## 2026-07-16 — Session 5: Phase 1 Authentication Tests and CI Baseline
+
+### Execution model
+
+- Created branch `agent/hardening-phase-1` from the two local hardening commits.
+- Started three parallel test/CI agents at the user's request; they did not return bounded changes promptly, so the primary agent interrupted them and completed the work directly.
+- Attempted a read-only Claude review through the approved wrapper. The local Claude CLI authentication was not visible to the sandbox, even after scoped read access, so Claude input was not treated as a release dependency.
+
+### Tests added
+
+- JWT creation includes the required subject, name, issuer, issued-at, and expiry claims.
+- Missing credentials, tampered tokens, and expired tokens return authentication failures.
+- Valid tokens resolve active agents; inactive agents are rejected.
+- Public health, tip-jar GET/POST parity, and configured homepage links are covered.
+- The complete focused suite now contains sixteen passing tests.
+
+### CI added
+
+- Added a GitHub Actions workflow for pull requests and pushes to `main`.
+- CI installs the Python 3.12 development requirements, compiles application/tests, and runs pytest.
+- A separate least-privilege job checks full Git history with Gitleaks.
+- Lint and dependency-audit gates remain open Phase 1 work.
+
+### Verification
+
+- `16 passed` locally under Python 3.12.
+- Python compilation, Docker Compose parsing, and Git whitespace checks passed.
+- Two FastAPI deprecation warnings identify the future migration from `on_event("shutdown")` to lifespan handlers; no functional failure.
+
+### Next action
+
+Commit and publish the Phase 1 branch for remote CI. Then continue registration, messaging, transfer, pagination, and concurrency coverage and add lint/dependency-audit gates.
