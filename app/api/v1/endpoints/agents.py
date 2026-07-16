@@ -68,6 +68,12 @@ async def rotate_token(
     agent: Agent = Depends(get_current_agent),
     session: AsyncSession = Depends(get_session),
 ):
+    """Irreversibly replace the current token.
+
+    The public alpha has no credential-recovery factor. Persist the replacement
+    response before discarding the old credential; a lost response means the
+    identity cannot be recovered.
+    """
     statement = (
         update(Agent)
         .where(

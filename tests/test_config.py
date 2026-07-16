@@ -39,6 +39,7 @@ def test_production_accepts_strong_jwt_secret() -> None:
         JWT_SECRET="a-secure-random-looking-secret-that-is-long-enough",
         JWT_EXPIRES_DAYS=30,
         ADMIN_API_KEY="a-separate-secure-admin-key-that-is-long-enough",
+        METRICS_API_KEY="a-third-secure-metrics-key-that-is-long-enough",
     )
 
     assert settings.ENV == "production"
@@ -53,6 +54,7 @@ def test_production_rejects_long_lived_tokens() -> None:
             JWT_SECRET="a-secure-random-looking-secret-that-is-long-enough",
             JWT_EXPIRES_DAYS=3650,
             ADMIN_API_KEY="a-separate-secure-admin-key-that-is-long-enough",
+            METRICS_API_KEY="a-third-secure-metrics-key-that-is-long-enough",
         )
 
 
@@ -65,6 +67,34 @@ def test_production_requires_strong_admin_key() -> None:
             JWT_SECRET="a-secure-random-looking-secret-that-is-long-enough",
             JWT_EXPIRES_DAYS=30,
             ADMIN_API_KEY="dev-only-admin-key",
+            METRICS_API_KEY="a-third-secure-metrics-key-that-is-long-enough",
+        )
+
+
+def test_production_requires_strong_metrics_key() -> None:
+    with pytest.raises(ValidationError, match="METRICS_API_KEY"):
+        Settings(
+            _env_file=None,
+            ENV="production",
+            DATABASE_URL=DATABASE_URL,
+            JWT_SECRET="a-secure-random-looking-secret-that-is-long-enough",
+            JWT_EXPIRES_DAYS=30,
+            ADMIN_API_KEY="a-separate-secure-admin-key-that-is-long-enough",
+            METRICS_API_KEY="dev-only-metrics-key",
+        )
+
+
+def test_production_requires_distinct_keys() -> None:
+    duplicate_key = "a-secure-random-looking-secret-that-is-long-enough"
+    with pytest.raises(ValidationError, match="must be distinct"):
+        Settings(
+            _env_file=None,
+            ENV="production",
+            DATABASE_URL=DATABASE_URL,
+            JWT_SECRET=duplicate_key,
+            JWT_EXPIRES_DAYS=30,
+            ADMIN_API_KEY="a-separate-secure-admin-key-that-is-long-enough",
+            METRICS_API_KEY=duplicate_key,
         )
 
 

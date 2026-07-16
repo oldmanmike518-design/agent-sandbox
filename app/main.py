@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.router import router as api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.db.session import get_session
+from app.services.auth import require_metrics_key
 from app.services.rate_limit import close_redis
+from app.services.readiness import check_readiness
+
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -60,6 +67,31 @@ def create_app() -> FastAPI:
     async def healthz():
         return {"status": "ok"}
 
+    @app.get("/readyz")
+    async def readyz(session=Depends(get_session)):
+        try:
+            result = await check_readiness(session)
+        except Exception:
+            logger.exception("Readiness database check failed")
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "not_ready",
+                    "database": "unavailable",
+                    "schema": "unknown",
+                },
+            )
+
+        status_code = 200 if result.ready else 503
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "status": "ready" if result.ready else "not_ready",
+                "database": result.database,
+                "schema": result.schema,
+            },
+        )
+
     @app.get("/", response_class=HTMLResponse)
     async def home():
         base = settings.PUBLIC_BASE_URL.rstrip("/")
@@ -101,7 +133,12 @@ def create_app() -> FastAPI:
 </html>"""
 
     # Metrics
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    Instrumentator().instrument(app).expose(
+        app,
+        endpoint="/metrics",
+        include_in_schema=False,
+        dependencies=[Depends(require_metrics_key)],
+    )
 
     return app
 

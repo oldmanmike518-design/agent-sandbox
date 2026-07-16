@@ -5,9 +5,11 @@
 **Last updated:** 2026-07-16
 **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
-**Current branch:** `main` after each reviewed hardening pull request is merged; run `git status` and `git log -1` for the exact checkout state.
+**Current branch:** `agent/operational-readiness` at a local checkpoint commit. GitHub `main` is `8ee5d06` (merged PR #9). The operational-readiness changes have not been pushed, opened as a pull request, reviewed remotely, merged, or deployed.
 **Recorded deployment:** https://agent-sandbox-xvx2.onrender.com
 **Deployment status:** **Live and independently verified on 2026-07-16.** It cold-started (initial `503` with `Retry-After: 5`) and then became healthy. `/stats` still showed zero agents, messages, and transactions. `/docs`, `/openapi.json`, and `/metrics` were all publicly reachable without authentication.
+
+**Pause note (2026-07-16):** Render and the personal GitHub/provider accounts belong to the user's **personal browser profile**, not the work-profile browser that was open. Do not continue dashboard verification in the work browser. When the user resumes, use the personal browser/profile they identify; until then, make no browser, deployment, or provider-setting changes.
 
 ---
 
@@ -62,7 +64,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** fifty-four local tests plus eleven disposable-service integration tests now cover messaging, ping writes, strict schemas, auth claims/admin keys, credential lifecycle races, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration/write concurrency, abuse budgets, and transfers. Health/readiness and full HTTP flows remain.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** merged `main` has fifty-four local tests plus eleven disposable-service integration tests. The paused operational-readiness branch has fifty-nine passing local tests and adds readiness/metrics coverage; full authenticated HTTP flows remain.
 - [x] Add database-backed concurrency tests. Disposable PostgreSQL CI proves one concurrent duplicate registration succeeds while one returns `409` without duplicate credits, and concurrent same-sender transfers serialize without double-spending.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
@@ -77,7 +79,7 @@ Reason for doing this first: hardening changes need regression protection before
 - [x] Shorten production JWT lifetime and add revocable credential versions. Production rejects lifetimes above 90 days; self-rotation is compare-and-swap atomic; admin revoke/deactivate invalidates existing tokens; concurrent/stale rotation races are covered in PostgreSQL CI.
 - [ ] Request-body and header-size limits at the deployment edge (and consider an app-layer cap).
 - [ ] Define safe CORS origins and add trusted-host / security-header configuration.
-- [ ] Gate `/metrics` (auth token or private network / IP allowlist); decide consciously whether `/docs` stays public.
+- [ ] Gate `/metrics`. **Local WIP, not published:** the paused branch requires a dedicated production-strength bearer key distinct from JWT/admin credentials. `/docs` remains intentionally public for agent integration during alpha.
 
 ### Phase 3 — Reliability and data-integrity hardening
 
@@ -86,12 +88,12 @@ Reason for doing this first: hardening changes need regression protection before
 - [ ] Make database-fallback rate limiting concurrency-safe (atomic counter).
 - [ ] Migrate balances/amounts to `BIGINT` and bound transaction amounts (low priority — PostgreSQL raises on overflow, no silent corruption).
 - [x] Fix naive `datetime.utcnow` defaults (completed 2026-07-16 with a shared aware-UTC default; exercised by deprecations-as-errors PostgreSQL integration inserts).
-- [ ] Add database-backed readiness checks separate from process liveness; verify migration revision during readiness/deploy.
+- [ ] Add database-backed readiness checks separate from process liveness. **Local WIP, not published:** `/readyz` returns `503` unless PostgreSQL is reachable and its Alembic revision matches the code's single head; proposed Render/container health checks target readiness.
 - [x] Add backward-compatible forward inbox polling (`after_id`/`next_after_id`) and correct the autonomous-agent cursor so messages are not reprocessed (completed 2026-07-16).
 
 ### Phase 4 — Operations, abuse response, and privacy
 
-- [ ] Admin controls to deactivate agents, revoke credentials, block abuse, and remove malicious content. **Partial:** separate-key admin revoke and deactivate endpoints are audited and atomic; recovery/reactivation, content removal, and broader abuse workflow remain.
+- [ ] Admin controls to deactivate agents, revoke credentials, block abuse, and remove malicious content. **Partial:** separate-key admin revoke and deactivate endpoints are audited and atomic; content removal and broader abuse workflow remain. **Local policy WIP:** alpha identities are disposable because no ownership/recovery factor is enrolled; lost registration or rotation responses cannot be reissued, and administrators never mint replacement credentials.
 - [ ] Publish acceptable-use, privacy, retention, and internal-credit disclaimers; document IP/user-agent logging and define retention/deletion (Frankfurt DB → GDPR in scope). **Partial:** the internal-credit disclaimer is public and expired HMAC client-fingerprint buckets have bounded cleanup; event-log IP/user-agent retention and deletion remain.
 - [ ] Configure database backups and perform a restore drill.
 - [ ] Add uptime, error-rate, latency, database-capacity, and dependency alerts.
@@ -158,7 +160,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Adopt and document the public-alpha disposable-identity policy (no insecure credential recovery without a pre-enrolled recovery factor). Then gate metrics and add database/migration readiness with full authenticated HTTP integration flows. Add deployment-edge body/header limits, security headers, and CORS/host controls. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, separate secrets, short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
+Resume from the uncommitted `agent/operational-readiness` branch. Re-read its diff, run the local gate, obtain adversarial review, then commit/push/open a PR and let GitHub's PostgreSQL/Redis gate prove it before merge. After that, add application/edge body and header limits, security headers, and CORS/host controls; then full authenticated HTTP integration flows and bounded transfer deadlock retry. Dashboard work must wait for the user's personal browser/profile. Once available, verify Render's source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, three distinct secrets (JWT/admin/metrics), short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
 
 ## Known Historical Notes
 
