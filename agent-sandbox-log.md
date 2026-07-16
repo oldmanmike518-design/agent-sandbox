@@ -676,3 +676,35 @@ Merge PR #7. Then add cross-agent/global write caps and the JWT credential lifec
 ### Next action
 
 Merge PR #8. Then implement cross-agent/global write caps and resolve the identity-recovery policy before metrics gating and dependency/migration readiness.
+
+---
+
+## 2026-07-16 — Session 13: Global Authenticated-Write Controls
+
+### Cross-agent abuse budget
+
+- Generalized the PostgreSQL-authoritative hierarchical limiter used by registration.
+- Added one shared per-client/global budget across authenticated message, transfer, and ping writes. Creating more agent identities no longer creates more aggregate write capacity from the same client, and the global ceiling limits aggregate traffic across clients.
+- Client-denied attempts stop before the global counter, preserving shared capacity during a single-client flood.
+- Limiter counters commit before endpoint mutations and remain consumed if a later recipient, balance, or per-agent validation rejects the request. This deliberately budgets attempts, not only successful writes; those later errors carry the consumed budget's headers.
+- PostgreSQL remains fail-closed and authoritative; there is no Redis/database split-brain quota.
+- Write-path cleanup removes expired HMAC client buckets beyond the configured retention grace period on the next controlled request, so abandoned identifiers do not depend on future registrations for cleanup.
+
+### Client contract and deployment configuration
+
+- Successful and rejected writes expose scoped `X-RateLimit-*` headers; rejected writes include `Retry-After`.
+- Message sends retain their tighter per-agent hourly limiter and report the more restrictive active scope.
+- Added configurable per-client, global, and window values to settings, `.env.example`, the Render Blueprint, README, and deployment instructions.
+- Default public-alpha values are 60 writes per client per minute and 600 writes globally per minute. Deployment-edge throttling is still required before public promotion.
+
+### Verification
+
+- Local: Ruff, compileall, shell syntax, Compose parsing, Git whitespace checks, `54 passed`, `11 skipped` disposable-service tests.
+- GitHub PR #9: unit/lint/dependency audit, full-history secret scan, and PostgreSQL/Redis integration jobs passed.
+- Twenty concurrent attempts from one client allow exactly five under a test limit, consume exactly five global units, and deny fifteen without draining global capacity. A second client can consume the final global unit through a different write endpoint, proving the bucket is cross-client and cross-endpoint.
+- Direct ping tests prove allowed activity is committed with rate headers and denied activity writes nothing.
+- Adversarial review found that the limiter's independent commit could leave the authenticated sender cached in SQLAlchemy's identity map. A later `FOR UPDATE` lock could therefore serialize correctly but still read the pre-lock balance. Locked participant queries now force `populate_existing`, and the PostgreSQL race test authenticates and binds both senders before their limiter commits; exactly one debit still succeeds and total credits remain conserved.
+
+### Next action
+
+Merge PR #9. Explicitly adopt the disposable-identity public-alpha policy, then gate metrics and implement database/migration readiness plus authenticated HTTP integration coverage. Continue hardening without promoting or deploying until the Render dashboard configuration is verified.

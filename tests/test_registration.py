@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.endpoints.register import register_agent
 from app.schemas.agent import RegisterRequest
-from app.services.abuse_control import RegistrationLimitDecision
+from app.services.abuse_control import RateLimitDecision
 
 
 class _ScalarResult:
@@ -43,8 +43,8 @@ def _request() -> Request:
 
 @pytest.fixture(autouse=True)
 def _allow_registration(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def _allowed(*_args: object, **_kwargs: object) -> RegistrationLimitDecision:
-        return RegistrationLimitDecision(True, "registration-ip", 5, 4, 3600)
+    async def _allowed(*_args: object, **_kwargs: object) -> RateLimitDecision:
+        return RateLimitDecision(True, "registration-ip", 5, 4, 3600)
 
     monkeypatch.setattr(
         "app.api.v1.endpoints.register.consume_registration_limit",
@@ -92,8 +92,8 @@ def test_invalid_registration_names_return_400(name: str) -> None:
 def test_registration_limit_returns_429_before_database_lookup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def _denied(*_args: object, **_kwargs: object) -> RegistrationLimitDecision:
-        return RegistrationLimitDecision(False, "registration-ip", 5, 0, 42)
+    async def _denied(*_args: object, **_kwargs: object) -> RateLimitDecision:
+        return RateLimitDecision(False, "registration-ip", 5, 0, 42)
 
     monkeypatch.setattr(
         "app.api.v1.endpoints.register.consume_registration_limit",

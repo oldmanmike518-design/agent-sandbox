@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import Request
 
 from app.core.config import settings
-from app.services.abuse_control import RegistrationLimitDecision, get_client_ip
+from app.services.abuse_control import RateLimitDecision, get_client_ip
 
 
 def _request(peer: str, forwarded_for: str | None = None) -> Request:
@@ -42,7 +42,7 @@ def test_trusted_proxy_chain_uses_nearest_untrusted_client(monkeypatch) -> None:
 
 
 def test_denied_registration_decision_includes_retry_after() -> None:
-    decision = RegistrationLimitDecision(False, "registration-global", 100, 0, 17)
+    decision = RateLimitDecision(False, "registration-global", 100, 0, 17)
 
     assert decision.headers["Retry-After"] == "17"
     assert decision.headers["X-RateLimit-Remaining"] == "0"

@@ -24,7 +24,7 @@ class _LimitRule:
 
 
 @dataclass(frozen=True)
-class RegistrationLimitDecision:
+class RateLimitDecision:
     allowed: bool
     scope: str
     limit: int
@@ -82,16 +82,26 @@ def _client_fingerprint(client_ip: str) -> str:
     ).hexdigest()[:32]
 
 
-def _registration_rules(
+def _hierarchical_rules(
     request: Request,
     *,
-    ip_limit: int,
+    bucket_prefix: str,
+    scope_prefix: str,
+    client_limit: int,
     global_limit: int,
 ) -> list[_LimitRule]:
     fingerprint = _client_fingerprint(get_client_ip(request))
     return [
-        _LimitRule("registration-ip", f"registration:ip:{fingerprint}", ip_limit),
-        _LimitRule("registration-global", "registration:global", global_limit),
+        _LimitRule(
+            f"{scope_prefix}-ip",
+            f"{bucket_prefix}:ip:{fingerprint}",
+            client_limit,
+        ),
+        _LimitRule(
+            f"{scope_prefix}-global",
+            f"{bucket_prefix}:global",
+            global_limit,
+        ),
     ]
 
 
@@ -101,7 +111,7 @@ async def _consume_rule(
     *,
     now: datetime,
     window_seconds: int,
-) -> RegistrationLimitDecision:
+) -> RateLimitDecision:
     new_window_end = now + timedelta(seconds=window_seconds)
     reset_window = RateLimitBucket.window_ends_at <= now
     statement = insert(RateLimitBucket).values(
@@ -124,7 +134,7 @@ async def _consume_rule(
     ).returning(RateLimitBucket.count, RateLimitBucket.window_ends_at)
     count, window_ends_at = (await session.execute(statement)).one()
     count = int(count)
-    return RegistrationLimitDecision(
+    return RateLimitDecision(
         allowed=count <= rule.limit,
         scope=rule.scope,
         limit=rule.limit,
@@ -139,14 +149,19 @@ async def _consume_database(
     *,
     now: datetime,
     window_seconds: int,
-) -> list[RegistrationLimitDecision]:
-    retention_cutoff = now - timedelta(seconds=settings.RATE_LIMIT_BUCKET_RETENTION_SECONDS)
-    await session.execute(
-        delete(RateLimitBucket).where(RateLimitBucket.window_ends_at < retention_cutoff)
-    )
-    await session.commit()
+    cleanup_expired: bool,
+) -> list[RateLimitDecision]:
+    if cleanup_expired:
+        retention_cutoff = now - timedelta(
+            seconds=settings.RATE_LIMIT_BUCKET_RETENTION_SECONDS
+        )
+        await session.execute(
+            delete(RateLimitBucket).where(
+                RateLimitBucket.window_ends_at < retention_cutoff
+            )
+        )
 
-    decisions: list[RegistrationLimitDecision] = []
+    decisions: list[RateLimitDecision] = []
     for rule in rules:
         decision = await _consume_rule(
             session,
@@ -159,9 +174,40 @@ async def _consume_database(
         if not decision.allowed:
             break
 
-    # Persist abuse counters independently of the later registration transaction.
+    # Persist abuse counters independently of the later application transaction.
     await session.commit()
     return decisions
+
+
+async def _consume_hierarchical_limit(
+    request: Request,
+    session: AsyncSession,
+    *,
+    bucket_prefix: str,
+    scope_prefix: str,
+    client_limit: int,
+    global_limit: int,
+    window_seconds: int,
+    cleanup_expired: bool,
+) -> RateLimitDecision:
+    rules = _hierarchical_rules(
+        request,
+        bucket_prefix=bucket_prefix,
+        scope_prefix=scope_prefix,
+        client_limit=client_limit,
+        global_limit=global_limit,
+    )
+    decisions = await _consume_database(
+        session,
+        rules,
+        now=datetime.now(timezone.utc),
+        window_seconds=window_seconds,
+        cleanup_expired=cleanup_expired,
+    )
+    denied = next((decision for decision in decisions if not decision.allowed), None)
+    if denied is not None:
+        return denied
+    return min(decisions, key=lambda decision: decision.remaining)
 
 
 async def consume_registration_limit(
@@ -171,23 +217,37 @@ async def consume_registration_limit(
     ip_limit: int | None = None,
     global_limit: int | None = None,
     window_seconds: int | None = None,
-) -> RegistrationLimitDecision:
+) -> RateLimitDecision:
     ip_limit = ip_limit or settings.REGISTRATION_IP_LIMIT_PER_HOUR
     global_limit = global_limit or settings.REGISTRATION_GLOBAL_LIMIT_PER_HOUR
     window_seconds = window_seconds or settings.REGISTRATION_LIMIT_WINDOW_SECONDS
-    rules = _registration_rules(
+    return await _consume_hierarchical_limit(
         request,
-        ip_limit=ip_limit,
+        session,
+        bucket_prefix="registration",
+        scope_prefix="registration",
+        client_limit=ip_limit,
         global_limit=global_limit,
+        window_seconds=window_seconds,
+        cleanup_expired=True,
     )
 
-    decisions = await _consume_database(
+
+async def consume_write_limit(
+    request: Request,
+    session: AsyncSession,
+    *,
+    ip_limit: int | None = None,
+    global_limit: int | None = None,
+    window_seconds: int | None = None,
+) -> RateLimitDecision:
+    return await _consume_hierarchical_limit(
+        request,
         session,
-        rules,
-        now=datetime.now(timezone.utc),
-        window_seconds=window_seconds,
+        bucket_prefix="write",
+        scope_prefix="write",
+        client_limit=ip_limit or settings.WRITE_IP_LIMIT_PER_MINUTE,
+        global_limit=global_limit or settings.WRITE_GLOBAL_LIMIT_PER_MINUTE,
+        window_seconds=window_seconds or settings.WRITE_LIMIT_WINDOW_SECONDS,
+        cleanup_expired=True,
     )
-    denied = next((decision for decision in decisions if not decision.allowed), None)
-    if denied is not None:
-        return denied
-    return min(decisions, key=lambda decision: decision.remaining)

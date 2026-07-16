@@ -27,7 +27,7 @@ from app.models.message import Message
 from app.models.rate_limit_bucket import RateLimitBucket
 from app.schemas.agent import RegisterRequest, RegisterResponse
 from app.schemas.transaction import TransactionSendRequest
-from app.services.abuse_control import consume_registration_limit
+from app.services.abuse_control import consume_registration_limit, consume_write_limit
 from app.services.auth import create_jwt, get_current_agent
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
 
@@ -221,7 +221,59 @@ def test_database_registration_limit_is_atomic_under_concurrency() -> None:
     asyncio.run(_run())
 
 
-def test_expired_registration_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_database_write_limit_is_shared_across_agents_and_clients() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+
+            async def _consume(client_ip: str, global_limit: int = 100) -> bool:
+                async with session_factory() as session:
+                    decision = await consume_write_limit(
+                        _request("/message/send", client_ip),
+                        session,
+                        ip_limit=5,
+                        global_limit=global_limit,
+                        window_seconds=60,
+                    )
+                    return decision.allowed
+
+            abusive_results = await asyncio.gather(
+                *(_consume("127.0.0.10") for _ in range(20))
+            )
+
+            async with session_factory() as session:
+                buckets = {
+                    bucket.bucket_key: bucket.count
+                    for bucket in (
+                        await session.execute(select(RateLimitBucket))
+                    ).scalars()
+                }
+
+            async with session_factory() as session:
+                second_client = await consume_write_limit(
+                    _request("/transaction/send", "127.0.0.11"),
+                    session,
+                    ip_limit=5,
+                    global_limit=6,
+                    window_seconds=60,
+                )
+
+            assert abusive_results.count(True) == 5
+            assert abusive_results.count(False) == 15
+            assert buckets["write:global"] == 5
+            assert max(
+                count
+                for key, count in buckets.items()
+                if key.startswith("write:ip:")
+            ) == 20
+            assert second_client.allowed is True
+            assert second_client.scope == "write-global"
+            assert second_client.remaining == 0
+
+    asyncio.run(_run())
+
+
+def test_expired_rate_limit_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "RATE_LIMIT_BUCKET_RETENTION_SECONDS", 0)
 
     async def _run() -> None:
@@ -251,6 +303,30 @@ def test_expired_registration_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyP
                     await session.get(RateLimitBucket, "registration:ip:expired")
                 ) is None
 
+            async with session_factory() as session:
+                session.add(
+                    RateLimitBucket(
+                        bucket_key="write:ip:expired",
+                        count=50,
+                        window_ends_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+                    )
+                )
+                await session.commit()
+
+            async with session_factory() as session:
+                await consume_write_limit(
+                    _request("/ping"),
+                    session,
+                    ip_limit=5,
+                    global_limit=100,
+                    window_seconds=60,
+                )
+
+            async with session_factory() as session:
+                assert (
+                    await session.get(RateLimitBucket, "write:ip:expired")
+                ) is None
+
     asyncio.run(_run())
 
 
@@ -263,15 +339,35 @@ def test_concurrent_transfers_do_not_double_spend() -> None:
                 recipient = await _new_agent(session, name="Recipient")
                 sender_id = sender.id
                 recipient_id = recipient.id
+                sender_name = sender.name
+                sender_credential_version = sender.credential_version
                 await session.commit()
+
+            token = create_jwt(
+                sender_id,
+                sender_name,
+                sender_credential_version,
+            )
+            creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            authenticated = asyncio.Barrier(2)
 
             async def _transfer() -> object:
                 async with session_factory() as session:
                     try:
+                        request = _request("/transaction/send")
+                        bound_sender = await get_current_agent(
+                            request,
+                            creds=creds,
+                            session=session,
+                        )
+                        # Force both requests to cache the original balance
+                        # before the limiter commits and participant locks run.
+                        await authenticated.wait()
                         return await send_credits(
                             TransactionSendRequest(to_agent_id=recipient_id, amount=80),
-                            _request("/transaction/send"),
-                            agent=Agent(id=sender_id),
+                            request,
+                            Response(),
+                            agent=bound_sender,
                             session=session,
                         )
                     except Exception as exc:
