@@ -4,9 +4,11 @@ services:
     container_name: agent-sandbox-api
     environment:
       # For local compose convenience
+      ENV: ${ENV:-dev}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://sandbox:sandbox@db:5432/sandbox}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       JWT_SECRET: ${JWT_SECRET:-agent-sandbox-local-development-only-secret}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-agent-sandbox-local-development-only-admin-key}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
     ports:
       - "8000:8000"

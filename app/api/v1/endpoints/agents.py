@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.models.agent import Agent
-from app.schemas.agent import AgentMe, AgentPublic
-from app.services.auth import get_current_agent
+from app.schemas.agent import AgentMe, AgentPublic, TokenResponse
+from app.services.auth import create_jwt, get_current_agent
+from app.services.events import log_event
 
 router = APIRouter()
 
@@ -58,4 +59,34 @@ async def me(
         messages_received=agent.messages_received,
         transactions_sent=agent.transactions_sent,
         transactions_received=agent.transactions_received,
+    )
+
+
+@router.post("/agents/me/rotate-token", response_model=TokenResponse)
+async def rotate_token(
+    request: Request,
+    agent: Agent = Depends(get_current_agent),
+    session: AsyncSession = Depends(get_session),
+):
+    statement = (
+        update(Agent)
+        .where(Agent.id == agent.id, Agent.is_active.is_(True))
+        .values(credential_version=Agent.credential_version + 1)
+        .returning(Agent.name, Agent.credential_version)
+    )
+    row = (await session.execute(statement)).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=401, detail="Agent not found or inactive")
+    agent_name, credential_version = row
+
+    await log_event(
+        session,
+        event_type="credential_rotate",
+        agent_id=agent.id,
+        request=request,
+        payload={"credential_version": credential_version},
+    )
+    await session.commit()
+    return TokenResponse(
+        token=create_jwt(agent.id, agent_name, credential_version),
     )

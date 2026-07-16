@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException, Request, Response
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from app.api.v1.endpoints.admin import deactivate_agent, revoke_agent_credentials
+from app.api.v1.endpoints.agents import rotate_token
 from app.api.v1.endpoints.messages import inbox
 from app.api.v1.endpoints.register import register_agent
 from app.api.v1.endpoints.transactions import send_credits
@@ -25,6 +28,7 @@ from app.models.rate_limit_bucket import RateLimitBucket
 from app.schemas.agent import RegisterRequest, RegisterResponse
 from app.schemas.transaction import TransactionSendRequest
 from app.services.abuse_control import consume_registration_limit
+from app.services.auth import create_jwt, get_current_agent
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
 
 
@@ -103,7 +107,7 @@ def test_migrations_create_expected_schema() -> None:
                 "event_logs",
                 "rate_limit_buckets",
             } <= table_names
-            assert revision == "0002_rate_limit_buckets"
+            assert revision == "0003_agent_credential_version"
 
     asyncio.run(_run())
 
@@ -294,6 +298,78 @@ def test_concurrent_transfers_do_not_double_spend() -> None:
             assert stored_sender.credits_balance == 20
             assert stored_recipient.credits_balance == 80
             assert stored_sender.credits_balance + stored_recipient.credits_balance == 100
+
+    asyncio.run(_run())
+
+
+def test_credential_rotation_revocation_and_deactivation() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                agent = await _new_agent(session, name="CredentialAgent")
+                agent_id = agent.id
+                agent_name = agent.name
+                credential_version = agent.credential_version
+                await session.commit()
+
+            first_token = create_jwt(agent_id, agent_name, credential_version)
+            async with session_factory() as session:
+                stored_agent = await session.get(Agent, agent_id)
+                rotated = await rotate_token(
+                    _request("/agents/me/rotate-token"),
+                    agent=stored_agent,
+                    session=session,
+                )
+
+            first_creds = HTTPAuthorizationCredentials(
+                scheme="Bearer",
+                credentials=first_token,
+            )
+            rotated_creds = HTTPAuthorizationCredentials(
+                scheme="Bearer",
+                credentials=rotated.token,
+            )
+            async with session_factory() as session:
+                with pytest.raises(HTTPException, match="Token has been revoked"):
+                    await get_current_agent(
+                        _request("/agents/me"),
+                        creds=first_creds,
+                        session=session,
+                    )
+                assert (
+                    await get_current_agent(
+                        _request("/agents/me"),
+                        creds=rotated_creds,
+                        session=session,
+                    )
+                ).id == agent_id
+
+            async with session_factory() as session:
+                revoked = await revoke_agent_credentials(
+                    agent_id,
+                    _request(f"/admin/agents/{agent_id}/revoke"),
+                    session=session,
+                )
+            assert revoked.is_active is True
+            assert revoked.credential_version == credential_version + 2
+
+            async with session_factory() as session:
+                with pytest.raises(HTTPException, match="Token has been revoked"):
+                    await get_current_agent(
+                        _request("/agents/me"),
+                        creds=rotated_creds,
+                        session=session,
+                    )
+
+            async with session_factory() as session:
+                deactivated = await deactivate_agent(
+                    agent_id,
+                    _request(f"/admin/agents/{agent_id}/deactivate"),
+                    session=session,
+                )
+            assert deactivated.is_active is False
+            assert deactivated.credential_version == credential_version + 3
 
     asyncio.run(_run())
 

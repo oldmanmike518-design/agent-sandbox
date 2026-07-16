@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 
+os.environ.setdefault("ENV", "test")
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://sandbox:sandbox@localhost:5432/sandbox",

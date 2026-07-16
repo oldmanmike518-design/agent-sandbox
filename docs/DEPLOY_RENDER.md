@@ -51,9 +51,12 @@ Render settings:
 
 Minimum required:
 
+- `ENV` = `production`
 - `DATABASE_URL` = your Neon URL (with `+asyncpg`)
 - `REDIS_URL` = your Upstash URL
 - `JWT_SECRET` = a long random string
+- `JWT_EXPIRES_DAYS` = `30` (must be 90 or fewer in production)
+- `ADMIN_API_KEY` = a separate long random string
 - `PUBLIC_BASE_URL` = your Render service URL (e.g. `https://your-sandbox.onrender.com`)
 
 Recommended:

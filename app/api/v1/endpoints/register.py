@@ -57,7 +57,7 @@ async def register_agent(
         await session.rollback()
         raise HTTPException(status_code=409, detail="Agent name already taken")
 
-    token = create_jwt(agent.id, agent.name)
+    token = create_jwt(agent.id, agent.name, agent.credential_version)
 
     await log_event(
         session,

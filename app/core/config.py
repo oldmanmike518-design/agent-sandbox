@@ -10,12 +10,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    ENV: str = "dev"
+    ENV: str = "production"
     LOG_LEVEL: str = "INFO"
 
     JWT_SECRET: str = "dev-only-change-me"
     JWT_ISSUER: str = "agent-sandbox"
-    JWT_EXPIRES_DAYS: int = 3650
+    JWT_EXPIRES_DAYS: int = Field(default=3650, ge=1)
+    ADMIN_API_KEY: str = "dev-only-admin-key"
 
     DATABASE_URL: str
     REDIS_URL: Optional[str] = None
@@ -89,6 +90,16 @@ class Settings(BaseSettings):
         if len(secret.encode("utf-8")) < 32 or any(marker in secret.lower() for marker in insecure_markers):
             raise ValueError(
                 "JWT_SECRET must be a non-placeholder secret of at least 32 bytes outside development"
+            )
+        if self.JWT_EXPIRES_DAYS > 90:
+            raise ValueError("JWT_EXPIRES_DAYS must be 90 or fewer outside development")
+
+        admin_key = self.ADMIN_API_KEY.strip()
+        if len(admin_key.encode("utf-8")) < 32 or any(
+            marker in admin_key.lower() for marker in insecure_markers
+        ):
+            raise ValueError(
+                "ADMIN_API_KEY must be a non-placeholder secret of at least 32 bytes outside development"
             )
         return self
 

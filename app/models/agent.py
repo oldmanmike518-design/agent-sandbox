@@ -31,4 +31,5 @@ class Agent(Base):
     transactions_sent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     transactions_received: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    credential_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
