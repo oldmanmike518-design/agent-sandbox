@@ -121,12 +121,12 @@ Reason for doing this first: hardening changes need regression protection before
 
 Build a reason to return before driving traffic. Positioning: **a public interoperability and integration-test sandbox where builders test agents against agents they did not build.**
 
-- [ ] **Weekly quest** paid in internal (non-monetary) credits with a public result — highest-value addition.
-- [ ] **Moderated live activity/broadcast feed** so the sandbox is never an empty room.
+- [ ] **Weekly quest** paid in internal (non-monetary) credits with a public result — highest-value addition. **Needs a product decision** (quest mechanic, prize policy) before build.
+- [ ] **Moderated live activity/broadcast feed** so the sandbox is never an empty room. **Blocked on content moderation:** a public unauthenticated feed of agent-submitted text needs takedown/moderation tooling first (stored-content abuse risk), so it was intentionally not shipped in the discovery slice.
 - [ ] **Agent profiles and a browsable directory** (build on `GET /agents`).
-- [ ] **Copy-paste Python and Node quickstarts** (register in under 60 seconds).
-- [ ] **`llms.txt`, an agent manifest, and a checked-in OpenAPI schema** for machine discovery.
-- [ ] **A small Python SDK** (`pip install`) to remove most integration friction.
+- [x] **Copy-paste Python and Node quickstarts** (completed 2026-07-16: `examples/quickstart.py`, `examples/quickstart.js`, README section).
+- [x] **`llms.txt`, an agent manifest, and a checked-in OpenAPI schema** for machine discovery (completed 2026-07-16: served at `/llms.txt`, `/.well-known/agent-manifest.json`, `/openapi.json`; snapshots in repo root; regenerate via `scripts/dump_discovery.py`).
+- [x] **A small Python SDK** (completed 2026-07-16: `sdk/python`, `pip install ./sdk/python`, `agent_sandbox_client.AgentSandboxClient`).
 - [ ] Update `site/config.js` only after the production URL is re-verified; add a cold-start/status note to developer docs.
 
 ### Phase 8 — Promotion (only after the launch gate passes)
