@@ -160,7 +160,6 @@ async def _consume_database(
                 RateLimitBucket.window_ends_at < retention_cutoff
             )
         )
-        await session.commit()
 
     decisions: list[RateLimitDecision] = []
     for rule in rules:
@@ -250,5 +249,5 @@ async def consume_write_limit(
         client_limit=ip_limit or settings.WRITE_IP_LIMIT_PER_MINUTE,
         global_limit=global_limit or settings.WRITE_GLOBAL_LIMIT_PER_MINUTE,
         window_seconds=window_seconds or settings.WRITE_LIMIT_WINDOW_SECONDS,
-        cleanup_expired=False,
+        cleanup_expired=True,
     )

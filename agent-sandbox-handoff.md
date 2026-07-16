@@ -62,7 +62,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** forty-eight local tests plus ten disposable-service integration tests now cover messaging, strict schemas, auth claims/admin keys, credential lifecycle races, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration concurrency/abuse budgets, and transfers. Health/readiness and full HTTP flows remain.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** fifty-four local tests plus eleven disposable-service integration tests now cover messaging, ping writes, strict schemas, auth claims/admin keys, credential lifecycle races, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration/write concurrency, abuse budgets, and transfers. Health/readiness and full HTTP flows remain.
 - [x] Add database-backed concurrency tests. Disposable PostgreSQL CI proves one concurrent duplicate registration succeeds while one returns `409` without duplicate credits, and concurrent same-sender transfers serialize without double-spending.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
@@ -72,7 +72,7 @@ Reason for doing this first: hardening changes need regression protection before
 ### Phase 2 — Close public-launch security blockers
 
 - [ ] Registration throttling at both edge and application levels. **Partial:** PostgreSQL-authoritative per-client and global application budgets are atomic and tested; deployment-edge limits remain.
-- [ ] Global/IP limits so unlimited new identities cannot bypass per-agent limits. **Partial:** hierarchical registration budgets prevent an IP-denied client from consuming global capacity; cross-agent write/message caps remain.
+- [x] Global/IP application limits so unlimited identities cannot bypass per-agent limits. Hierarchical PostgreSQL budgets protect registration and share one authenticated-write budget across message, transfer, and ping endpoints; client-denied requests do not consume global capacity. Deployment-edge throttling remains a separate launch item.
 - [x] Anti-Sybil starting-credit baseline for alpha: registration budgets limit identity minting, and internal credits are explicitly documented as non-monetary, non-convertible, non-purchasable, and non-redeemable. Stronger identity proof can follow measured abuse.
 - [x] Shorten production JWT lifetime and add revocable credential versions. Production rejects lifetimes above 90 days; self-rotation is compare-and-swap atomic; admin revoke/deactivate invalidates existing tokens; concurrent/stale rotation races are covered in PostgreSQL CI.
 - [ ] Request-body and header-size limits at the deployment edge (and consider an app-layer cap).
@@ -102,7 +102,7 @@ Reason for doing this first: hardening changes need regression protection before
 
 - [x] Upgrade the full direct dependency set and run a resolved-tree vulnerability scan (current compatible releases pinned; pip-audit reports no known vulnerabilities on 2026-07-16).
 - [ ] Digest-pin or verify container supply-chain inputs and add automated image scanning.
-- [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs seven live integration tests; full authenticated HTTP end-to-end flows remain.
+- [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs eleven live integration tests; full authenticated HTTP end-to-end flows remain.
 - [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results.
 - [ ] Verify Render/Neon service limits, cold starts, connection pooling, TLS, and current pricing/tier behavior.
 
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 2 with cross-agent/global write controls. Decide and implement either a disposable-identity policy or a secure admin recovery/reactivation flow for lost rotation responses. Then gate metrics and add database/migration readiness with full authenticated HTTP integration flows. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, separate secrets, short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
+Adopt and document the public-alpha disposable-identity policy (no insecure credential recovery without a pre-enrolled recovery factor). Then gate metrics and add database/migration readiness with full authenticated HTTP integration flows. Add deployment-edge body/header limits, security headers, and CORS/host controls. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, separate secrets, short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
 
 ## Known Historical Notes
 

@@ -41,13 +41,25 @@ async def send_credits(
         q = select(Agent).where(func.lower(Agent.name) == body.to_agent_name.lower())
         recipient = (await session.execute(q)).scalar_one_or_none()
         if recipient is None:
-            raise HTTPException(status_code=404, detail="Recipient agent not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Recipient agent not found",
+                headers=write_decision.headers,
+            )
         recipient_id = recipient.id
 
     if recipient_id is None:
-        raise HTTPException(status_code=400, detail="Provide to_agent_id or to_agent_name")
+        raise HTTPException(
+            status_code=400,
+            detail="Provide to_agent_id or to_agent_name",
+            headers=write_decision.headers,
+        )
     if recipient_id == agent.id:
-        raise HTTPException(status_code=400, detail="Cannot send credits to yourself")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot send credits to yourself",
+            headers=write_decision.headers,
+        )
 
     # Lock both rows in a deterministic order so opposing transfers cannot
     # deadlock by each holding its sender while waiting for its recipient.
@@ -57,6 +69,10 @@ async def send_credits(
         .where(Agent.id.in_(participant_ids))
         .order_by(Agent.id)
         .with_for_update()
+        # Authentication loaded the sender before the limiter's independent
+        # commit. Refresh locked rows even when they already exist in the
+        # identity map so balance checks always see the serialized DB state.
+        .execution_options(populate_existing=True)
     )
     participants = (await session.execute(participants_q)).scalars().all()
     participants_by_id = {participant.id: participant for participant in participants}
@@ -64,12 +80,24 @@ async def send_credits(
     sender = participants_by_id.get(agent.id)
     recipient = participants_by_id.get(recipient_id)
     if sender is None:
-        raise HTTPException(status_code=401, detail="Sender agent not found")
+        raise HTTPException(
+            status_code=401,
+            detail="Sender agent not found",
+            headers=write_decision.headers,
+        )
     if recipient is None or not recipient.is_active:
-        raise HTTPException(status_code=404, detail="Recipient agent not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Recipient agent not found",
+            headers=write_decision.headers,
+        )
 
     if sender.credits_balance < body.amount:
-        raise HTTPException(status_code=400, detail="Insufficient credits")
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient credits",
+            headers=write_decision.headers,
+        )
 
     sender.credits_balance -= body.amount
     recipient.credits_balance += body.amount

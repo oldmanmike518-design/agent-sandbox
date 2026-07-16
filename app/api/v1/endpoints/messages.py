@@ -67,18 +67,30 @@ async def send_message(
         q = select(Agent).where(func.lower(Agent.name) == body.to_agent_name.lower())
         recipient = (await session.execute(q)).scalar_one_or_none()
         if recipient is None:
-            raise HTTPException(status_code=404, detail="Recipient agent not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Recipient agent not found",
+                headers=active_headers,
+            )
         recipient_id = recipient.id
 
     is_broadcast = recipient_id is None
     if not is_broadcast:
         if recipient_id == agent.id:
-            raise HTTPException(status_code=400, detail="Cannot message yourself")
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot message yourself",
+                headers=active_headers,
+            )
 
         q = select(Agent).where(Agent.id == recipient_id, Agent.is_active.is_(True))
         recipient = (await session.execute(q)).scalar_one_or_none()
         if recipient is None:
-            raise HTTPException(status_code=404, detail="Recipient agent not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Recipient agent not found",
+                headers=active_headers,
+            )
 
     msg = Message(
         sender_id=agent.id,

@@ -119,6 +119,7 @@ def test_transfer_locks_participants_in_uuid_order_and_conserves_credits() -> No
     query = session.queries[0]
     assert "ORDER BY agents.id" in str(query)
     assert list(query.compile().params.values()) == [[low_id, high_id]]
+    assert query.get_execution_options()["populate_existing"] is True
 
 
 def test_opposing_transfer_queries_use_the_same_lock_order() -> None:
@@ -179,3 +180,32 @@ def test_shared_write_limit_rejects_transfer_before_database_query(
     assert exc_info.value.status_code == 429
     assert exc_info.value.headers["Retry-After"] == "9"
     assert session.queries == []
+
+
+def test_post_limit_transfer_failure_includes_consumed_budget_headers() -> None:
+    sender = _agent(
+        UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+        "Sender",
+        0,
+    )
+    recipient = _agent(
+        UUID("00000000-0000-0000-0000-000000000001"),
+        "Recipient",
+        0,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            send_credits(
+                TransactionSendRequest(to_agent_id=recipient.id, amount=1),
+                _request(),
+                Response(),
+                agent=sender,
+                session=_TransferSession([recipient, sender]),
+            )
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Insufficient credits"
+    assert exc_info.value.headers["X-RateLimit-Scope"] == "write-ip"
+    assert exc_info.value.headers["X-RateLimit-Remaining"] == "59"

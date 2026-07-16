@@ -258,6 +258,27 @@ def test_shared_write_limit_rejects_before_agent_limit(
     assert exc_info.value.headers["X-RateLimit-Scope"] == "write-ip"
 
 
+def test_post_limit_message_failure_includes_consumed_budget_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_message_limit(monkeypatch, remaining=8, reset_seconds=120)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            send_message(
+                MessageSendRequest(to_agent_id=uuid4(), content="missing recipient"),
+                _request(),
+                Response(),
+                agent=_agent(),
+                session=_MessageSession([None]),
+            )
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.headers["X-RateLimit-Scope"] == "message-agent"
+    assert exc_info.value.headers["X-RateLimit-Remaining"] == "8"
+
+
 def test_inbox_rejects_mixed_forward_and_backward_cursors() -> None:
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(

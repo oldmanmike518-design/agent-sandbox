@@ -273,7 +273,7 @@ def test_database_write_limit_is_shared_across_agents_and_clients() -> None:
     asyncio.run(_run())
 
 
-def test_expired_registration_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_expired_rate_limit_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "RATE_LIMIT_BUCKET_RETENTION_SECONDS", 0)
 
     async def _run() -> None:
@@ -303,6 +303,30 @@ def test_expired_registration_buckets_are_cleaned_up(monkeypatch: pytest.MonkeyP
                     await session.get(RateLimitBucket, "registration:ip:expired")
                 ) is None
 
+            async with session_factory() as session:
+                session.add(
+                    RateLimitBucket(
+                        bucket_key="write:ip:expired",
+                        count=50,
+                        window_ends_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+                    )
+                )
+                await session.commit()
+
+            async with session_factory() as session:
+                await consume_write_limit(
+                    _request("/ping"),
+                    session,
+                    ip_limit=5,
+                    global_limit=100,
+                    window_seconds=60,
+                )
+
+            async with session_factory() as session:
+                assert (
+                    await session.get(RateLimitBucket, "write:ip:expired")
+                ) is None
+
     asyncio.run(_run())
 
 
@@ -315,16 +339,35 @@ def test_concurrent_transfers_do_not_double_spend() -> None:
                 recipient = await _new_agent(session, name="Recipient")
                 sender_id = sender.id
                 recipient_id = recipient.id
+                sender_name = sender.name
+                sender_credential_version = sender.credential_version
                 await session.commit()
+
+            token = create_jwt(
+                sender_id,
+                sender_name,
+                sender_credential_version,
+            )
+            creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            authenticated = asyncio.Barrier(2)
 
             async def _transfer() -> object:
                 async with session_factory() as session:
                     try:
+                        request = _request("/transaction/send")
+                        bound_sender = await get_current_agent(
+                            request,
+                            creds=creds,
+                            session=session,
+                        )
+                        # Force both requests to cache the original balance
+                        # before the limiter commits and participant locks run.
+                        await authenticated.wait()
                         return await send_credits(
                             TransactionSendRequest(to_agent_id=recipient_id, amount=80),
-                            _request("/transaction/send"),
+                            request,
                             Response(),
-                            agent=Agent(id=sender_id),
+                            agent=bound_sender,
                             session=session,
                         )
                     except Exception as exc:
