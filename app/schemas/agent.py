@@ -31,3 +31,13 @@ class RegisterResponse(BaseModel):
     agent: AgentMe
     token: str
     tip_jar: dict
+
+
+class TokenResponse(BaseModel):
+    token: str
+
+
+class AdminAgentActionResponse(BaseModel):
+    agent_id: UUID
+    is_active: bool
+    credential_version: int

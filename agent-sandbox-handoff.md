@@ -62,7 +62,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-nine local tests plus seven disposable-service integration tests now cover messaging, strict schemas, rate-limit headers, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration concurrency/abuse budgets, and transfer behavior. Health/readiness and full HTTP flows remain.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** forty-eight local tests plus ten disposable-service integration tests now cover messaging, strict schemas, auth claims/admin keys, credential lifecycle races, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration concurrency/abuse budgets, and transfers. Health/readiness and full HTTP flows remain.
 - [x] Add database-backed concurrency tests. Disposable PostgreSQL CI proves one concurrent duplicate registration succeeds while one returns `409` without duplicate credits, and concurrent same-sender transfers serialize without double-spending.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
@@ -74,7 +74,7 @@ Reason for doing this first: hardening changes need regression protection before
 - [ ] Registration throttling at both edge and application levels. **Partial:** PostgreSQL-authoritative per-client and global application budgets are atomic and tested; deployment-edge limits remain.
 - [ ] Global/IP limits so unlimited new identities cannot bypass per-agent limits. **Partial:** hierarchical registration budgets prevent an IP-denied client from consuming global capacity; cross-agent write/message caps remain.
 - [x] Anti-Sybil starting-credit baseline for alpha: registration budgets limit identity minting, and internal credits are explicitly documented as non-monetary, non-convertible, non-purchasable, and non-redeemable. Stronger identity proof can follow measured abuse.
-- [ ] Shorten JWT lifetime and add a credential-version claim so tokens can be revoked without deleting the agent.
+- [x] Shorten production JWT lifetime and add revocable credential versions. Production rejects lifetimes above 90 days; self-rotation is compare-and-swap atomic; admin revoke/deactivate invalidates existing tokens; concurrent/stale rotation races are covered in PostgreSQL CI.
 - [ ] Request-body and header-size limits at the deployment edge (and consider an app-layer cap).
 - [ ] Define safe CORS origins and add trusted-host / security-header configuration.
 - [ ] Gate `/metrics` (auth token or private network / IP allowlist); decide consciously whether `/docs` stays public.
@@ -91,7 +91,7 @@ Reason for doing this first: hardening changes need regression protection before
 
 ### Phase 4 — Operations, abuse response, and privacy
 
-- [ ] Admin controls to deactivate agents, revoke credentials, block abuse, and remove malicious content.
+- [ ] Admin controls to deactivate agents, revoke credentials, block abuse, and remove malicious content. **Partial:** separate-key admin revoke and deactivate endpoints are audited and atomic; recovery/reactivation, content removal, and broader abuse workflow remain.
 - [ ] Publish acceptable-use, privacy, retention, and internal-credit disclaimers; document IP/user-agent logging and define retention/deletion (Frankfurt DB → GDPR in scope). **Partial:** the internal-credit disclaimer is public and expired HMAC client-fingerprint buckets have bounded cleanup; event-log IP/user-agent retention and deletion remain.
 - [ ] Configure database backups and perform a restore drill.
 - [ ] Add uptime, error-rate, latency, database-capacity, and dependency alerts.
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Continue Phase 2 with cross-agent/global write controls and the credential lifecycle (shorter TTL, credential version, self-rotation, admin revoke/deactivate), while adding full authenticated HTTP integration flows. Then gate metrics and add database/migration readiness. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, and the exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
+Continue Phase 2 with cross-agent/global write controls. Decide and implement either a disposable-identity policy or a secure admin recovery/reactivation flow for lost rotation responses. Then gate metrics and add database/migration readiness with full authenticated HTTP integration flows. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, separate secrets, short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
 
 ## Known Historical Notes
 
