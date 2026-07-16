@@ -46,6 +46,20 @@ async def require_admin_key(
         raise _unauthorized()
 
 
+async def require_metrics_key(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> None:
+    configured_key = settings.METRICS_API_KEY
+    if not configured_key:
+        raise HTTPException(status_code=503, detail="Metrics endpoint is not configured")
+    if creds is None or not secrets.compare_digest(creds.credentials, configured_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing metrics credential",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 async def get_current_agent(
     request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),

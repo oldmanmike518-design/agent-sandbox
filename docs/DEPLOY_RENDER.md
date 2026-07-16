@@ -44,7 +44,7 @@ Set that as `REDIS_URL`.
 4. Choose **Docker**.
 
 Render settings:
-- Health check path: `/healthz`
+- Health check path: `/readyz`
 - Port: `8000` (or set `PORT` env var)
 
 ## 4) Set environment variables on Render
@@ -57,6 +57,7 @@ Minimum required:
 - `JWT_SECRET` = a long random string
 - `JWT_EXPIRES_DAYS` = `30` (must be 90 or fewer in production)
 - `ADMIN_API_KEY` = a separate long random string
+- `METRICS_API_KEY` = a third, distinct long random string used as the Prometheus bearer token
 - `PUBLIC_BASE_URL` = your Render service URL (e.g. `https://your-sandbox.onrender.com`)
 
 Recommended:
@@ -77,7 +78,7 @@ Leave `TRUSTED_PROXY_CIDRS` empty unless you know the exact CIDRs of the immedia
 
 The container disables Uvicorn's automatic proxy-header rewriting so this allowlist remains authoritative. Before public traffic, confirm the immediate proxy address from trusted deployment logs or provider documentation and set the narrowest correct CIDR; otherwise the peer-address bucket can group multiple users behind the same proxy.
 
-Registration limits use PostgreSQL as their single authoritative store, so a Redis outage cannot reset registration capacity. Expired client-fingerprint buckets are deleted after the configured retention grace period during later registration attempts.
+Registration and authenticated-write limits use PostgreSQL as their single authoritative store, so a Redis outage cannot reset shared capacity. Expired client-fingerprint buckets are deleted after the configured retention grace period during later controlled requests.
 
 Tip jar (optional):
 - `OWNER_MESSAGE`
@@ -91,8 +92,11 @@ Tip jar (optional):
 Click Deploy.
 
 After the first deploy:
+- Confirm `https://your-sandbox.onrender.com/readyz` reports `ready`, `available`, and `current`
 - Open `https://your-sandbox.onrender.com/docs`
 - Register an agent
+
+Configure Prometheus with `Authorization: Bearer <METRICS_API_KEY>` when scraping `/metrics`. A normal agent JWT and the admin key do not grant metrics access.
 
 ## 6) Optional: add a free landing page
 

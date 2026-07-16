@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     JWT_ISSUER: str = "agent-sandbox"
     JWT_EXPIRES_DAYS: int = Field(default=3650, ge=1)
     ADMIN_API_KEY: str = "dev-only-admin-key"
+    METRICS_API_KEY: str = "dev-only-metrics-key"
 
     DATABASE_URL: str
     REDIS_URL: Optional[str] = None
@@ -103,6 +104,18 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "ADMIN_API_KEY must be a non-placeholder secret of at least 32 bytes outside development"
+            )
+
+        metrics_key = self.METRICS_API_KEY.strip()
+        if len(metrics_key.encode("utf-8")) < 32 or any(
+            marker in metrics_key.lower() for marker in insecure_markers
+        ):
+            raise ValueError(
+                "METRICS_API_KEY must be a non-placeholder secret of at least 32 bytes outside development"
+            )
+        if len({secret, admin_key, metrics_key}) != 3:
+            raise ValueError(
+                "JWT_SECRET, ADMIN_API_KEY, and METRICS_API_KEY must be distinct outside development"
             )
         return self
 

@@ -9,6 +9,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       JWT_SECRET: ${JWT_SECRET:-agent-sandbox-local-development-only-secret}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-agent-sandbox-local-development-only-admin-key}
+      METRICS_API_KEY: ${METRICS_API_KEY:-agent-sandbox-local-development-only-metrics-key}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
     ports:
       - "8000:8000"

@@ -708,3 +708,42 @@ Merge PR #8. Then implement cross-agent/global write caps and resolve the identi
 ### Next action
 
 Merge PR #9. Explicitly adopt the disposable-identity public-alpha policy, then gate metrics and implement database/migration readiness plus authenticated HTTP integration coverage. Continue hardening without promoting or deploying until the Render dashboard configuration is verified.
+
+---
+
+## 2026-07-16 — Session 14: Paused Operational-Readiness Checkpoint
+
+### Merged baseline
+
+- PR #9 merged to GitHub `main` as `8ee5d06` after all GitHub gates passed and the adversarial re-review returned a ship verdict.
+- The merged slice adds PostgreSQL-authoritative cross-agent write budgets, refreshes locked transfer participants after the limiter's independent commit, bounds expired write-bucket retention, and preserves rate headers on post-limit failures.
+- The live Render service was **not** deployed or modified and may still be on stale code.
+
+### Local work in progress — checkpointed locally, not published
+
+- Created local branch `agent/operational-readiness` from `8ee5d06`.
+- Added a proposed dedicated `METRICS_API_KEY` bearer gate for `/metrics`, with production validation requiring JWT, admin, and metrics secrets to be strong and distinct.
+- Added a proposed `/readyz` check that verifies PostgreSQL connectivity and exact agreement between `alembic_version` and the code's single migration head; `/healthz` remains dependency-free liveness.
+- Pointed the proposed Render and container health checks at `/readyz`.
+- Drafted the public-alpha disposable-identity policy: the returned token is the only credential; no replacement credential is issued without a pre-enrolled recovery factor; lost registration or rotation responses require a new identity.
+- Extended local tests for metrics authentication, production key validation, readiness success, schema mismatch, database failure, and the live migrated PostgreSQL readiness function.
+
+### Local verification at pause
+
+- Ruff passed.
+- `59 passed`, `11 skipped` disposable-service tests under deprecations-as-errors.
+- Python compilation, shell syntax, Compose parsing, and Git whitespace checks passed.
+- One local checkpoint commit preserves this WIP slice. No push, pull request, merge, deployment, browser action, or provider-setting change was made.
+
+### Why work paused
+
+- The browser open for Render verification was the user's work-profile browser, while Render/GitHub/provider access was created with the user's personal accounts and personal browser profile.
+- Per the user's instruction, dashboard and deployment work is pinned. Do not use or alter the work-profile browser. Resume provider verification only after the user identifies or opens the personal browser/profile.
+
+### Exact resume point
+
+1. Open `/Users/michaellanger/Projects/agent-sandbox` and confirm branch `agent/operational-readiness`; use `git log -1` and `git status` to identify the exact local checkpoint.
+2. Re-read the checkpoint diff against `main` and rerun Ruff, pytest, compileall, shell, Compose, and whitespace checks.
+3. Send the metrics/readiness/auth boundary for read-only adversarial review.
+4. If clean, commit locally, push, open the next PR, and require unit/audit, Gitleaks, and PostgreSQL/Redis integration gates before merge.
+5. Keep deployment and Render settings untouched until the user provides the personal browser/profile.

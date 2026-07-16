@@ -30,6 +30,7 @@ from app.schemas.transaction import TransactionSendRequest
 from app.services.abuse_control import consume_registration_limit, consume_write_limit
 from app.services.auth import create_jwt, get_current_agent
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
+from app.services.readiness import check_readiness
 
 
 pytestmark = pytest.mark.skipif(
@@ -99,6 +100,7 @@ def test_migrations_create_expected_schema() -> None:
                 revision = (
                     await session.execute(text("SELECT version_num FROM alembic_version"))
                 ).scalar_one()
+                readiness = await check_readiness(session)
 
             assert {
                 "agents",
@@ -108,6 +110,9 @@ def test_migrations_create_expected_schema() -> None:
                 "rate_limit_buckets",
             } <= table_names
             assert revision == "0003_agent_credential_version"
+            assert readiness.ready is True
+            assert readiness.database == "available"
+            assert readiness.schema == "current"
 
     asyncio.run(_run())
 
