@@ -374,6 +374,102 @@ def test_credential_rotation_revocation_and_deactivation() -> None:
     asyncio.run(_run())
 
 
+def test_concurrent_rotation_allows_exactly_one_replacement() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                agent = await _new_agent(session, name="ConcurrentRotateAgent")
+                agent_id = agent.id
+                token = create_jwt(agent.id, agent.name, agent.credential_version)
+                await session.commit()
+
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            barrier = asyncio.Barrier(2)
+
+            async def _rotate() -> object:
+                async with session_factory() as session:
+                    current = await get_current_agent(
+                        _request("/agents/me/rotate-token"),
+                        creds=credentials,
+                        session=session,
+                    )
+                    await barrier.wait()
+                    try:
+                        return await rotate_token(
+                            _request("/agents/me/rotate-token"),
+                            agent=current,
+                            session=session,
+                        )
+                    except Exception as exc:
+                        return exc
+
+            results = await asyncio.gather(_rotate(), _rotate())
+            successes = [result for result in results if not isinstance(result, Exception)]
+            stale = [
+                result
+                for result in results
+                if isinstance(result, HTTPException)
+                and result.status_code == 401
+                and result.detail == "Token has been revoked or already rotated"
+            ]
+
+            async with session_factory() as session:
+                stored_agent = await session.get(Agent, agent_id)
+
+            assert len(successes) == 1
+            assert len(stale) == 1
+            assert stored_agent is not None
+            assert stored_agent.credential_version == 2
+
+    asyncio.run(_run())
+
+
+def test_admin_revoke_cannot_be_undone_by_stale_rotation() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                agent = await _new_agent(session, name="RevokeRaceAgent")
+                agent_id = agent.id
+                token = create_jwt(agent.id, agent.name, agent.credential_version)
+                await session.commit()
+
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            async with session_factory() as stale_session:
+                stale_agent = await get_current_agent(
+                    _request("/agents/me/rotate-token"),
+                    creds=credentials,
+                    session=stale_session,
+                )
+
+                async with session_factory() as admin_session:
+                    revoked = await revoke_agent_credentials(
+                        agent_id,
+                        _request(f"/admin/agents/{agent_id}/revoke"),
+                        session=admin_session,
+                    )
+                assert revoked.credential_version == 2
+
+                with pytest.raises(
+                    HTTPException,
+                    match="Token has been revoked or already rotated",
+                ):
+                    await rotate_token(
+                        _request("/agents/me/rotate-token"),
+                        agent=stale_agent,
+                        session=stale_session,
+                    )
+
+            async with session_factory() as session:
+                stored_agent = await session.get(Agent, agent_id)
+
+            assert stored_agent is not None
+            assert stored_agent.credential_version == 2
+
+    asyncio.run(_run())
+
+
 def test_inbox_includes_own_direct_messages_and_broadcasts_only() -> None:
     async def _run() -> None:
         async for session_factory, _engine in _session_factory():

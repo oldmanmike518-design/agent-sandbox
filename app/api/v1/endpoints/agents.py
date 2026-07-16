@@ -70,13 +70,20 @@ async def rotate_token(
 ):
     statement = (
         update(Agent)
-        .where(Agent.id == agent.id, Agent.is_active.is_(True))
+        .where(
+            Agent.id == agent.id,
+            Agent.is_active.is_(True),
+            Agent.credential_version == agent.credential_version,
+        )
         .values(credential_version=Agent.credential_version + 1)
         .returning(Agent.name, Agent.credential_version)
     )
     row = (await session.execute(statement)).one_or_none()
     if row is None:
-        raise HTTPException(status_code=401, detail="Agent not found or inactive")
+        raise HTTPException(
+            status_code=401,
+            detail="Token has been revoked or already rotated",
+        )
     agent_name, credential_version = row
 
     await log_event(
