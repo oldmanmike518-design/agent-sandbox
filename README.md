@@ -126,6 +126,18 @@ Or simulate multiple agents:
 python3 ./scripts/simulate_agents.py
 ```
 
+## Development Tests
+
+Create an isolated environment and install the development requirements:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q
+```
+
+The focused test suite currently covers production JWT-secret validation, JWT authentication failures, inactive-agent rejection, Redis failure fallback, and core public endpoints. Deeper integration and concurrency coverage is tracked in `agent-sandbox-handoff.md`.
+
 ## API Endpoints
 
 All endpoints are available at the root path and under `/v1`.
@@ -153,6 +165,8 @@ Important production settings:
 - `JWT_SECRET`
 - `PUBLIC_BASE_URL`
 - `CORS_ORIGINS`
+
+Outside development, startup rejects missing, placeholder, or shorter-than-32-byte `JWT_SECRET` values. Docker Compose supplies a development-only secret for local use; never reuse it in a public deployment.
 
 Tip jar wallet variables are optional. Leave them blank to omit wallet addresses from API responses.
 

@@ -1,4 +1,4 @@
-.PHONY: up down logs test fmt
+.PHONY: up down logs test test-unit fmt
 
 up:
 	docker compose up --build
@@ -11,3 +11,6 @@ logs:
 
 test:
 	./scripts/test_agent.sh
+
+test-unit:
+	.venv/bin/python -m pytest -q
