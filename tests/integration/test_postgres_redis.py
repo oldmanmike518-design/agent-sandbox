@@ -686,3 +686,72 @@ def test_purge_expired_events_removes_only_old_rows() -> None:
             assert remaining == ["recent"]
 
     asyncio.run(_run())
+
+
+def test_ring_of_concurrent_transfers_conserves_credits() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            ring_size = 8
+            starting = 100
+
+            async with session_factory() as session:
+                agents = [
+                    await _new_agent(session, name=f"RingAgent{i}", credits=starting)
+                    for i in range(ring_size)
+                ]
+                await session.commit()
+                specs = [
+                    (agent.id, agent.name, agent.credential_version) for agent in agents
+                ]
+
+            async def _transfer(
+                sender_spec: tuple, recipient_id: object, client_ip: str
+            ) -> object:
+                sender_id, sender_name, sender_version = sender_spec
+                token = create_jwt(sender_id, sender_name, sender_version)
+                creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+                async with session_factory() as session:
+                    try:
+                        request = _request("/transaction/send", client_ip)
+                        bound = await get_current_agent(
+                            request, creds=creds, session=session
+                        )
+                        return await send_credits(
+                            TransactionSendRequest(to_agent_id=recipient_id, amount=10),
+                            request,
+                            Response(),
+                            agent=bound,
+                            session=session,
+                        )
+                    except Exception as exc:
+                        return exc
+
+            tasks = [
+                _transfer(specs[i], specs[(i + 1) % ring_size][0], f"10.0.0.{i}")
+                for i in range(ring_size)
+            ]
+            results = await asyncio.gather(*tasks)
+            successes = [r for r in results if not isinstance(r, Exception)]
+
+            async with session_factory() as session:
+                total = int(
+                    (
+                        await session.execute(
+                            select(func.coalesce(func.sum(Agent.credits_balance), 0))
+                        )
+                    ).scalar_one()
+                )
+                min_balance = int(
+                    (
+                        await session.execute(select(func.min(Agent.credits_balance)))
+                    ).scalar_one()
+                )
+
+            # Credits are conserved no matter which transfers won under contention,
+            # and no balance goes negative.
+            assert total == ring_size * starting
+            assert min_balance >= 0
+            assert len(successes) >= 1
+
+    asyncio.run(_run())
