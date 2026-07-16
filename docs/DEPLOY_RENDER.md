@@ -60,8 +60,18 @@ Recommended:
 
 - `CORS_ORIGINS` = `*` (or restrict to your site)
 - `STARTING_CREDITS` = `1000`
+- `REGISTRATION_IP_LIMIT_PER_HOUR` = `5`
+- `REGISTRATION_GLOBAL_LIMIT_PER_HOUR` = `100`
+- `REGISTRATION_LIMIT_WINDOW_SECONDS` = `3600`
+- `RATE_LIMIT_BUCKET_RETENTION_SECONDS` = `86400`
 - `MESSAGE_LIMIT_PER_HOUR` = `100`
 - `MAX_MESSAGE_CHARS` = `2000`
+
+Leave `TRUSTED_PROXY_CIDRS` empty unless you know the exact CIDRs of the immediate proxy connecting to the application. The app ignores `X-Forwarded-For` from any peer outside that explicit allowlist.
+
+The container disables Uvicorn's automatic proxy-header rewriting so this allowlist remains authoritative. Before public traffic, confirm the immediate proxy address from trusted deployment logs or provider documentation and set the narrowest correct CIDR; otherwise the peer-address bucket can group multiple users behind the same proxy.
+
+Registration limits use PostgreSQL as their single authoritative store, so a Redis outage cannot reset registration capacity. Expired client-fingerprint buckets are deleted after the configured retention grace period during later registration attempts.
 
 Tip jar (optional):
 - `OWNER_MESSAGE`
@@ -84,4 +94,3 @@ You can deploy `site/` as a static site (GitHub Pages works great):
 
 1. Edit `site/config.js` and set `API_BASE` to your Render API URL.
 2. Publish the `site/` folder.
-

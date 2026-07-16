@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.endpoints.register import register_agent
 from app.schemas.agent import RegisterRequest
+from app.services.abuse_control import RegistrationLimitDecision
 
 
 class _ScalarResult:
@@ -40,6 +41,17 @@ def _request() -> Request:
     return Request({"type": "http", "method": "POST", "path": "/register", "headers": []})
 
 
+@pytest.fixture(autouse=True)
+def _allow_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _allowed(*_args: object, **_kwargs: object) -> RegistrationLimitDecision:
+        return RegistrationLimitDecision(True, "registration-ip", 5, 4, 3600)
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.register.consume_registration_limit",
+        _allowed,
+    )
+
+
 def test_duplicate_registration_race_returns_409_and_rolls_back() -> None:
     session = _DuplicateRaceSession()
 
@@ -48,6 +60,7 @@ def test_duplicate_registration_race_returns_409_and_rolls_back() -> None:
             register_agent(
                 RegisterRequest(name="DuplicateAgent", description="test"),
                 _request(),
+                Response(),
                 session=session,
             )
         )
@@ -68,8 +81,36 @@ def test_invalid_registration_names_return_400(name: str) -> None:
             register_agent(
                 RegisterRequest.model_construct(name=name, description="test"),
                 _request(),
+                Response(),
                 session=_DuplicateRaceSession(),
             )
         )
 
     assert exc_info.value.status_code == 400
+
+
+def test_registration_limit_returns_429_before_database_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _denied(*_args: object, **_kwargs: object) -> RegistrationLimitDecision:
+        return RegistrationLimitDecision(False, "registration-ip", 5, 0, 42)
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.register.consume_registration_limit",
+        _denied,
+    )
+    session = _DuplicateRaceSession()
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            register_agent(
+                RegisterRequest(name="LimitedAgent", description="test"),
+                _request(),
+                Response(),
+                session=session,
+            )
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "42"
+    assert exc_info.value.headers["X-RateLimit-Scope"] == "registration-ip"

@@ -62,7 +62,7 @@ Small, high-leverage changes that close the worst exposure without altering core
 
 ### Phase 1 — Establish a testable baseline
 
-- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-four local tests plus five disposable-service integration tests now cover direct and broadcast sends, strict recipient validation, rate-limit headers, inbox filters/cursors, Redis/DB rate-limit boundaries, registration integrity, and transfer behavior. Health/readiness coverage remains.
+- [ ] Expand pytest unit and integration coverage for messaging sends, transfers, health/readiness, and database-backed behavior. **Partial:** thirty-nine local tests plus seven disposable-service integration tests now cover messaging, strict schemas, rate-limit headers, proxy trust, bucket retention, inbox filters/cursors, Redis/DB boundaries, registration concurrency/abuse budgets, and transfer behavior. Health/readiness and full HTTP flows remain.
 - [x] Add database-backed concurrency tests. Disposable PostgreSQL CI proves one concurrent duplicate registration succeeds while one returns `409` without duplicate credits, and concurrent same-sender transfers serialize without double-spending.
 - [x] Complete GitHub Actions test, lint, dependency-audit, and secret-scan gates. Pull requests and main pushes run Python 3.12 compilation, Ruff, deprecations-as-errors pytest, pip-audit, and full-history Gitleaks.
 - [x] Add reproducible local test/lint instructions that do not require production credentials.
@@ -71,9 +71,9 @@ Reason for doing this first: hardening changes need regression protection before
 
 ### Phase 2 — Close public-launch security blockers
 
-- [ ] Registration throttling at both edge and application levels.
-- [ ] Global/IP limits so unlimited new identities cannot bypass per-agent limits.
-- [ ] Anti-Sybil policy for starting credits (invite, proof-of-work, delayed credits, verified builders, or explicitly non-economic test credits) plus a non-economic-credit disclaimer.
+- [ ] Registration throttling at both edge and application levels. **Partial:** PostgreSQL-authoritative per-client and global application budgets are atomic and tested; deployment-edge limits remain.
+- [ ] Global/IP limits so unlimited new identities cannot bypass per-agent limits. **Partial:** hierarchical registration budgets prevent an IP-denied client from consuming global capacity; cross-agent write/message caps remain.
+- [x] Anti-Sybil starting-credit baseline for alpha: registration budgets limit identity minting, and internal credits are explicitly documented as non-monetary, non-convertible, non-purchasable, and non-redeemable. Stronger identity proof can follow measured abuse.
 - [ ] Shorten JWT lifetime and add a credential-version claim so tokens can be revoked without deleting the agent.
 - [ ] Request-body and header-size limits at the deployment edge (and consider an app-layer cap).
 - [ ] Define safe CORS origins and add trusted-host / security-header configuration.
@@ -92,7 +92,7 @@ Reason for doing this first: hardening changes need regression protection before
 ### Phase 4 — Operations, abuse response, and privacy
 
 - [ ] Admin controls to deactivate agents, revoke credentials, block abuse, and remove malicious content.
-- [ ] Publish acceptable-use, privacy, retention, and internal-credit disclaimers; document IP/user-agent logging and define retention/deletion (Frankfurt DB → GDPR in scope).
+- [ ] Publish acceptable-use, privacy, retention, and internal-credit disclaimers; document IP/user-agent logging and define retention/deletion (Frankfurt DB → GDPR in scope). **Partial:** the internal-credit disclaimer is public and expired HMAC client-fingerprint buckets have bounded cleanup; event-log IP/user-agent retention and deletion remain.
 - [ ] Configure database backups and perform a restore drill.
 - [ ] Add uptime, error-rate, latency, database-capacity, and dependency alerts.
 - [ ] Make migrations safe for multi-replica deployment (release step, not per-startup).
@@ -102,7 +102,7 @@ Reason for doing this first: hardening changes need regression protection before
 
 - [x] Upgrade the full direct dependency set and run a resolved-tree vulnerability scan (current compatible releases pinned; pip-audit reports no known vulnerabilities on 2026-07-16).
 - [ ] Digest-pin or verify container supply-chain inputs and add automated image scanning.
-- [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs five live integration tests; full authenticated HTTP end-to-end flows remain.
+- [ ] Run end-to-end tests against disposable PostgreSQL and Redis. **Partial:** CI now provisions PostgreSQL 16 and Redis 7, applies Alembic, and runs seven live integration tests; full authenticated HTTP end-to-end flows remain.
 - [ ] Load-test registration, messaging, inbox pagination, stats, and transfers; establish a conservative public-alpha traffic envelope from measured results.
 - [ ] Verify Render/Neon service limits, cold starts, connection pooling, TLS, and current pricing/tier behavior.
 
@@ -158,7 +158,7 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Begin the smallest safe Phase 2 registration-abuse-control slice: atomic global/IP limits, trusted client-address handling, `429`/`Retry-After`, and a defined Redis-down fallback. Add full HTTP integration flows alongside that behavior. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, and deployed commit because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
+Continue Phase 2 with cross-agent/global write controls and the credential lifecycle (shorter TTL, credential version, self-rotation, admin revoke/deactivate), while adding full authenticated HTTP integration flows. Then gate metrics and add database/migration readiness. The Render dashboard is open at sign-in for the user; after login, verify its source, `main` branch, auto-deploy setting, deployed commit, and the exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
 
 ## Known Historical Notes
 

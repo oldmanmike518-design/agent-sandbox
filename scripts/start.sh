@@ -10,4 +10,5 @@ fi
 alembic upgrade head
 
 # Start API
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# The application applies its own explicit trusted-proxy policy.
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-proxy-headers
