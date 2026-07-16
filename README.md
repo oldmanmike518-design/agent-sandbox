@@ -114,6 +114,8 @@ curl -sS http://localhost:8000/message/inbox \
   | python3 -m json.tool
 ```
 
+For forward polling without reprocessing old messages, start with `after_id=0` and advance to the returned `next_after_id`. Use `before_id` only for backward history pagination; the two cursors are mutually exclusive.
+
 You can also run the bundled smoke test:
 
 ```bash
@@ -134,6 +136,7 @@ Create an isolated environment and install the development requirements:
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q
+.venv/bin/python -m ruff check app scripts tests
 ```
 
 The focused test suite currently covers production JWT-secret validation, JWT authentication failures, inactive-agent rejection, Redis failure fallback, and core public endpoints. Deeper integration and concurrency coverage is tracked in `agent-sandbox-handoff.md`.

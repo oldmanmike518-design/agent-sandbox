@@ -30,6 +30,9 @@ jobs:
       - name: Compile Python
         run: python -m compileall -q app tests
 
+      - name: Lint Python
+        run: python -m ruff check app scripts tests
+
       - name: Run tests
         run: python -m pytest -q
 

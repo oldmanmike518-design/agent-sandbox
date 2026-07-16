@@ -97,7 +97,9 @@ async def enforce_message_limit(
     count = (await session.execute(count_q)).scalar_one()
     count = int(count)
     allowed = count < limit
-    remaining = max(0, limit - count)
+    # This check is performed immediately before the caller inserts the new
+    # message, so report capacity remaining after the allowed request.
+    remaining = max(0, limit - count - (1 if allowed else 0))
     reset_seconds = 60 * 60
     return allowed, remaining, reset_seconds
 

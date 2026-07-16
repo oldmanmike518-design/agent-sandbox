@@ -1,4 +1,4 @@
-.PHONY: up down logs test test-unit fmt
+.PHONY: up down logs test test-unit lint fmt
 
 up:
 	docker compose up --build
@@ -14,3 +14,6 @@ test:
 
 test-unit:
 	.venv/bin/python -m pytest -q
+
+lint:
+	.venv/bin/python -m ruff check app scripts tests

@@ -49,7 +49,65 @@ def test_redis_failure_uses_database_fallback(monkeypatch) -> None:
     )
 
     assert allowed is True
-    assert remaining == 7
+    assert remaining == 6
     assert reset_seconds == 3600
     assert session.executed is True
     assert rate_limit._redis is None
+
+
+class _WorkingRedis:
+    def __init__(self, value: int) -> None:
+        self.value = value
+        self.expired = False
+
+    async def incr(self, _key: str) -> int:
+        return self.value
+
+    async def expire(self, _key: str, _seconds: int) -> None:
+        self.expired = True
+
+
+def test_redis_limit_boundary_allows_final_message(monkeypatch) -> None:
+    redis = _WorkingRedis(value=10)
+
+    async def _get_redis() -> _WorkingRedis:
+        return redis
+
+    monkeypatch.setattr(rate_limit, "get_redis", _get_redis)
+
+    allowed, remaining, _reset_seconds = asyncio.run(
+        rate_limit.enforce_message_limit(uuid4(), _Session(0), limit_per_hour=10)
+    )
+
+    assert allowed is True
+    assert remaining == 0
+
+
+def test_redis_limit_boundary_rejects_next_message(monkeypatch) -> None:
+    redis = _WorkingRedis(value=11)
+
+    async def _get_redis() -> _WorkingRedis:
+        return redis
+
+    monkeypatch.setattr(rate_limit, "get_redis", _get_redis)
+
+    allowed, remaining, _reset_seconds = asyncio.run(
+        rate_limit.enforce_message_limit(uuid4(), _Session(0), limit_per_hour=10)
+    )
+
+    assert allowed is False
+    assert remaining == 0
+
+
+def test_database_limit_boundary_reports_post_request_remaining(monkeypatch) -> None:
+    async def _no_redis() -> None:
+        return None
+
+    monkeypatch.setattr(rate_limit, "get_redis", _no_redis)
+
+    allowed, remaining, _reset_seconds = asyncio.run(
+        rate_limit.enforce_message_limit(uuid4(), _Session(9), limit_per_hour=10)
+    )
+
+    assert allowed is True
+    assert remaining == 0
