@@ -5,13 +5,14 @@ import logging
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.router import router as api_router
 from app.core.config import settings
+from app.core.discovery import build_agent_manifest, build_llms_txt
 from app.core.logging import configure_logging
 from app.core.middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
 from app.db.session import get_session
@@ -75,6 +76,14 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok"}
+
+    @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def llms_txt():
+        return build_llms_txt()
+
+    @app.get("/.well-known/agent-manifest.json", include_in_schema=False)
+    async def agent_manifest():
+        return build_agent_manifest()
 
     @app.get("/readyz")
     async def readyz(session=Depends(get_session)):
