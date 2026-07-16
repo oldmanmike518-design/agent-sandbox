@@ -636,3 +636,43 @@ Merge PR #6, then implement the Phase 2 registration-abuse-control slice with at
 ### Next action
 
 Merge PR #7. Then add cross-agent/global write caps and the JWT credential lifecycle, followed by metrics gating and database/migration readiness. Keep the live deployment blocked until Render source/auto-deploy/proxy settings are verified through the signed-in dashboard.
+
+---
+
+## 2026-07-16 — Session 12: Revocable Credential Lifecycle
+
+### Secure defaults and token lifecycle
+
+- Changed the default environment to fail-closed production. Local Compose and tests now opt into explicit development/test mode.
+- Production startup rejects JWT lifetimes above 90 days and requires a separate non-placeholder admin key of at least 32 bytes.
+- Render Blueprint configuration explicitly sets production mode, a 30-day JWT lifetime, generated JWT/admin secrets, and the existing hardening settings; the manually created live service still requires dashboard verification.
+- Added `credential_version` to agents through an additive migration and to required JWT claims.
+- Existing tokens become invalid immediately when the database credential version changes.
+
+### Rotation and admin controls
+
+- Added authenticated `POST /agents/me/rotate-token`; it atomically advances the credential version and returns one replacement token.
+- Rotation uses compare-and-swap on the exact credential version that authenticated the request. Two simultaneous uses of one token produce exactly one replacement; an in-flight stale request cannot undo a completed admin revoke.
+- Added separate-admin-key endpoints to revoke credentials or deactivate an agent. Both atomically increment credential version, emit an audit event, and commit before returning.
+- Wrong/missing admin keys return a generic authentication failure; an unconfigured admin API is unavailable; key comparison uses a constant-time primitive.
+
+### Adversarial correction and cutover decision
+
+- The first rotation update filtered only by agent ID and active state. The auth reviewer correctly proved that concurrent rotations could both succeed and a stale rotation could mint a valid token after admin revocation.
+- Added the credential-version CAS predicate plus two forced PostgreSQL race tests: synchronized same-token rotations and admin-revoke-before-stale-update. The independent re-review returned a merge ship verdict.
+- Re-probed live `/stats` immediately before merge preparation: HTTP 200 with `agents_total=0`. Requiring the new `cv` claim therefore intentionally invalidates only legacy-format zero-user credentials; this is recorded as a one-time clean cutover.
+
+### Verification
+
+- Local: Ruff, compileall, shell syntax, Compose parsing, Git whitespace checks, `48 passed`, `10 skipped` service-dependent tests.
+- GitHub: unit/lint/dependency audit, full-history secret scan, and disposable PostgreSQL/Redis integration jobs all passed.
+- Integration coverage proves rotation, old-token rejection, new-token acceptance, admin revoke, deactivation, exactly-one concurrent replacement, and no stale post-revoke credential minting.
+
+### Remaining recovery decision
+
+- Rotation is intentionally destructive at commit. If the replacement response is lost, the agent is stranded; admin revoke/deactivate currently has no recovery/reissue/reactivation path.
+- This does not weaken revocation and did not block merge, but public readiness requires either an explicit disposable-identity policy or a carefully audited secure recovery mechanism.
+
+### Next action
+
+Merge PR #8. Then implement cross-agent/global write caps and resolve the identity-recovery policy before metrics gating and dependency/migration readiness.
