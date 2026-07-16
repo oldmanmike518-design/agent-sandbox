@@ -5,9 +5,9 @@
 **Last updated:** 2026-07-16
 **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
-**Current branch:** `agent/operational-readiness` at a local checkpoint commit. GitHub `main` is `8ee5d06` (merged PR #9). The operational-readiness changes have not been pushed, opened as a pull request, reviewed remotely, merged, or deployed.
+**Current branch:** `main` at `66acb03`, synchronized with `origin/main`. The 2026-07-16 autonomous engineering sprint merged PRs #10–#14 (operational readiness, web-exposure hardening, product-loop discovery, privacy/retention, load-test harness). The working tree is clean; nothing awaits push.
 **Recorded deployment:** https://agent-sandbox-xvx2.onrender.com
-**Deployment status:** **Live and independently verified on 2026-07-16.** It cold-started (initial `503` with `Retry-After: 5`) and then became healthy. `/stats` still showed zero agents, messages, and transactions. `/docs`, `/openapi.json`, and `/metrics` were all publicly reachable without authentication.
+**Deployment status:** **Live but running OLD code.** Verified 2026-07-16: cold-starts then healthy, `/stats` still zero. Crucially, `/metrics` is still public and `/readyz` returns 404 — the live service predates the merged hardening. **The deployed commit is unverified and must be redeployed to current `main` from the personal browser.** See `DEPLOYMENT_HANDOFF.md`.
 
 **Pause note (2026-07-16):** Render and the personal GitHub/provider accounts belong to the user's **personal browser profile**, not the work-profile browser that was open. Do not continue dashboard verification in the work browser. When the user resumes, use the personal browser/profile they identify; until then, make no browser, deployment, or provider-setting changes.
 
@@ -160,7 +160,16 @@ Public promotion is blocked until all of the following are true:
 
 ## Next Session — Start Here
 
-Resume from the uncommitted `agent/operational-readiness` branch. Re-read its diff, run the local gate, obtain adversarial review, then commit/push/open a PR and let GitHub's PostgreSQL/Redis gate prove it before merge. After that, add application/edge body and header limits, security headers, and CORS/host controls; then full authenticated HTTP integration flows and bounded transfer deadlock retry. Dashboard work must wait for the user's personal browser/profile. Once available, verify Render's source, `main` branch, auto-deploy setting, deployed commit, `ENV=production`, three distinct secrets (JWT/admin/metrics), short JWT TTL, and exact narrow `TRUSTED_PROXY_CIDRS` before deploying because `render.yaml` is not authoritative for the manually created service. Do not begin promotion work.
+The engineering sequence is done in code (PRs #10–#14 merged). What remains is **not code** — it needs the maintainer's personal browser and a few decisions. Follow **`DEPLOYMENT_HANDOFF.md`** step by step:
+
+1. Redeploy the live Render service to current `main` (`66acb03`) from the personal browser; set `ENV=production`, three distinct secrets, `ALLOWED_HOSTS`, health check `/readyz`, and the other env vars; then verify `/readyz`, gated `/metrics`, and discovery endpoints.
+2. Schedule `scripts/purge_old_events.py` as a daily Render cron (retention enforcement).
+3. Set a real data-controller contact in `PRIVACY.md`/`ACCEPTABLE_USE.md` (replace `<CONTACT_EMAIL>`).
+4. Run `scripts/loadtest.py` against a disposable staging instance and fill in the capacity envelope in `docs/LOAD_TESTING.md`; set production rate limits from the results.
+
+Optional engineering follow-up (maintainer decision): bounded transfer deadlock-retry. Deterministic single-statement lock ordering already prevents deadlocks and the CI ring-transfer stress test proves credit conservation under contention, so this is defense-in-depth, not a correctness gap — recommend a separately-reviewed change to the money path rather than bundling it.
+
+Do not begin promotion work; the public activity feed and quest remain blocked on the moderation and product decisions noted in Phase 7.
 
 ## Known Historical Notes
 

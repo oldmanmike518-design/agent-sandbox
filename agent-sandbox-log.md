@@ -747,3 +747,39 @@ Merge PR #9. Explicitly adopt the disposable-identity public-alpha policy, then 
 3. Send the metrics/readiness/auth boundary for read-only adversarial review.
 4. If clean, commit locally, push, open the next PR, and require unit/audit, Gitleaks, and PostgreSQL/Redis integration gates before merge.
 5. Keep deployment and Render settings untouched until the user provides the personal browser/profile.
+
+---
+
+## 2026-07-16 — Session 15: Autonomous Launch-Readiness Sprint (Claude)
+
+Autonomous engineering sprint under a "keep moving until launch-ready" mandate, in the documented order: web-exposure hardening → product-loop assets → privacy notice → load test. Push/PR/merge on green CI + adversarial self-review; no deploy, no public posting, no browser/account changes. Started from `main` @ `8ee5d06`; ended at `main` @ `66acb03`.
+
+### Merged this session
+
+- **PR #10** — operational readiness (from the previously-paused checkpoint): `/metrics` gated behind `METRICS_API_KEY`, new `/readyz` (DB + Alembic-head check), Render health check → `/readyz`.
+- **PR #11** — web-exposure hardening: security headers on every response (nosniff, `X-Frame-Options: DENY`, Referrer-Policy, framing CSP, Permissions-Policy), `TrustedHostMiddleware` host allowlist (`ALLOWED_HOSTS`, loopback auto-added), request-body cap (`MAX_REQUEST_BYTES`), optional HSTS (`SECURITY_HSTS_SECONDS`). New `app/core/middleware.py` + 6 tests.
+- **PR #12** — product-loop discovery: served `/llms.txt` and `/.well-known/agent-manifest.json`, checked-in `openapi.json`/`llms.txt`/manifest snapshots + `scripts/dump_discovery.py`, a minimal Python SDK (`sdk/python`, `agent-sandbox-client`), and Python/Node quickstarts (`examples/`). Manifest advertises credits as non-monetary.
+- **PR #13** — privacy/retention: `PRIVACY.md` + `ACCEPTABLE_USE.md`, `EVENT_LOG_RETENTION_DAYS` (default 90) with `purge_expired_events()` + `scripts/purge_old_events.py`, policies linked from README/llms.txt/manifest. Unit + purge integration tests.
+- **PR #14** — load test: `scripts/loadtest.py` (throughput, latency percentiles, status/429 breakdown), `docs/LOAD_TESTING.md` (methodology + capacity-envelope template), and a ring-of-concurrent-transfers CI stress test proving credit conservation under contention.
+
+All five passed remote CI (test + Postgres/Redis integration + Gitleaks) before merge. Test suite grew 59 → 71 local tests (+ integration).
+
+### Deliberate scope calls (did NOT do, on purpose)
+
+- **No fake-agent "pumping."** Fabricated registrations would astroturf public stats, trip the merged anti-Sybil/registration controls, and poison trust. The legitimate substitute is the load-test harness against disposable staging.
+- **No public unauthenticated activity/broadcast feed.** It would expose arbitrary agent-submitted text with no moderation/takedown tooling (stored-content abuse risk). Parked in Phase 7 pending a moderation decision.
+- **No personal email committed.** Data-controller contact left as `<CONTACT_EMAIL>` placeholder for the maintainer to set.
+- **No rushed money-path retry.** Transfers already lock both participants in a single deterministic `SELECT … IN (…) ORDER BY id FOR UPDATE`, which prevents deadlocks; the CI ring stress test proves conservation. Bounded retry is optional defense-in-depth, recommended as a separately-reviewed follow-up rather than a tail-of-sprint change to the most safety-critical code.
+
+### Could not do here (no Docker daemon, no local Postgres/Redis, no load tools)
+
+- Measured load/capacity numbers — delivered the harness + methodology + a CI correctness-under-load test instead; the envelope must be measured against staging.
+- Any deployment or dashboard verification — requires the maintainer's personal browser profile.
+
+### Remaining before launch (human + decisions, not code)
+
+Captured in `DEPLOYMENT_HANDOFF.md`: redeploy Render to current `main` and set env/secrets/health-check (the live service still runs old code — public `/metrics`, no `/readyz`); schedule the retention purge; set the data-controller contact; run the load test and record the envelope. Promotion stays blocked; the feed/quest need product + moderation decisions.
+
+### Next action
+
+Maintainer works `DEPLOYMENT_HANDOFF.md` on the personal browser. Do not begin promotion.
