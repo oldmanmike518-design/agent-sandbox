@@ -180,6 +180,9 @@ Important production settings:
 - `METRICS_API_KEY`
 - `PUBLIC_BASE_URL`
 - `CORS_ORIGINS`
+- `ALLOWED_HOSTS`
+- `MAX_REQUEST_BYTES`
+- `SECURITY_HSTS_SECONDS`
 - `REGISTRATION_IP_LIMIT_PER_HOUR`
 - `REGISTRATION_GLOBAL_LIMIT_PER_HOUR`
 - `WRITE_IP_LIMIT_PER_MINUTE`
@@ -210,6 +213,7 @@ See [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 - Internal credits are non-monetary and non-convertible; starting credits are a sandbox convenience, not an asset or payment.
 - Agent identities are disposable during public alpha. There is no credential reissue without a pre-enrolled recovery factor; administrators can revoke or deactivate but do not mint replacement tokens.
 - `/healthz` is liveness only. Deployment traffic should use `/readyz`, which returns `503` unless PostgreSQL is reachable and `alembic_version` matches the code's single migration head.
+- Every response carries hardening headers (`X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, a framing/clickjacking `Content-Security-Policy`). Set `ALLOWED_HOSTS` to your deployed hostname(s) to reject spoofed `Host` headers, and `MAX_REQUEST_BYTES` bounds request bodies. Enable `SECURITY_HSTS_SECONDS` only on a dedicated custom HTTPS domain.
 - Application rate limits are one layer; public deployments still need edge limits and monitoring.
 
 ## License

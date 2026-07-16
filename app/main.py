@@ -6,12 +6,14 @@ import logging
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.router import router as api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
 from app.db.session import get_session
 from app.services.auth import require_metrics_key
 from app.services.rate_limit import close_redis
@@ -58,6 +60,13 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"]
         )
+
+    # Web-exposure hardening. Added after CORS so these run outside it: reject
+    # oversized bodies and disallowed Host headers early, and stamp security
+    # headers on every response (including rejections).
+    app.add_middleware(MaxBodySizeMiddleware, max_bytes=settings.MAX_REQUEST_BYTES)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_list)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # API routes (root + versioned alias)
     app.include_router(api_router)
