@@ -2,18 +2,18 @@
 
 > Authoritative current state and execution order. Read this first. Historical detail is append-only in `agent-sandbox-log.md`.
 
-- **Last updated:** 2026-07-19 — Session 19 (verification core built and locally verified)
+- **Last updated:** 2026-07-19 — Session 20 (verification core released and proven in production)
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
-- **Production code:** `main` baseline `1be6d96` (PRs #10–#15 merged)
-- **Repository state:** checkout is on local branch `agent/verification-core`; implementation through Task 12 is committed at `64eb48f`, with this Task 13 closeout commit at the branch tip. `main` remains at `8faf95c`.
+- **Production application code:** `e98559d` (PR #18 merged and live; later Session 20 closeout commits are documentation-only)
+- **Repository state:** PR #18 is merged; PR #19 is the documentation-only Session 20 release closeout
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
-- **Public usage:** two clearly-labeled project-operated smoke agents and one broadcast (2026-07-19 end-to-end check); no outside builders yet
+- **Public usage:** three clearly labeled project-operated smoke agents, the visibly labeled system conformance partner, and one complete 8/8 verification report; no outside builders yet
 
-## Session 19 Verification-Core Handoff (READ FIRST)
+## Session 20 Verification-Core Release Handoff (READ FIRST)
 
-Revision 4 of `docs/plans/2026-07-19-verification-core.md` is fully implemented locally. Claude completed Tasks 0–2 before its usage limit; Codex verified the inherited migration correction and completed Tasks 3–13. **Nothing was pushed, no PR was opened, no production bootstrap ran, and no deploy occurred. The Render production service remains on the pre-verification code.**
+Revision 4 of `docs/plans/2026-07-19-verification-core.md` is fully implemented, merged in PR #18, migrated, bootstrapped, deployed, and proven through the public production contracts. Production is no longer on the pre-verification build.
 
 ### Built and committed
 
@@ -27,14 +27,15 @@ Revision 4 of `docs/plans/2026-07-19-verification-core.md` is fully implemented 
 - Observation retention purge and privacy disclosure.
 - Endpoint-driven PostgreSQL integration matrix covering the compliant flow, deficient clients, foreign traffic, lifecycle, concurrency, refunds, outbox recovery, takedown, sanitized output, statistics exclusion, bootstrap conflicts, and purge.
 
-### Local verification completed
+### Release verification completed
 
 - Unit suite: **114 passed**.
 - New verification integration module: **23 passed**.
-- Complete integration directory: **36 passed**.
+- Complete integration directory: **37 passed** after the release-review regression test.
 - Ruff: **all checks passed**.
 - Alembic migration imports and upgrades successfully to `0004_verification_core`.
 - Checked-in OpenAPI snapshot regenerated.
+- GitHub PR #18 CI: test, integration, and full-history secret scan all passed.
 
 Disposable local PostgreSQL and Redis were started only for integration tests. No production data or credentials were used.
 
@@ -46,17 +47,22 @@ Disposable local PostgreSQL and Redis were started only for integration tests. N
 4. Updated the pre-existing migration integration assertion from revision 0003 to 0004 and included all five verification tables.
 5. The normative max-length fixture is defined algebraically in the spec instead of printing 1,984 repeated `x` characters.
 6. The plan’s admin snippets repeated the router’s `/admin` prefix; implementation correctly declares routes relative to the existing prefixed router.
+7. Release review moved conformance identity validation into the insert transaction, so a mixed-case reserved-name conflict rolls back without leaving a partial system row.
+8. Render Free has no shell or one-off jobs, so `scripts/start.sh` now runs the idempotent bootstrap after Alembic and before Uvicorn. A migration or identity conflict fails the new deploy while the previous release remains live.
 
-### Still requires maintainer authorization
+### Production proof
 
-1. Review the local branch and commits.
-2. Push `agent/verification-core` and open a PR.
-3. Let GitHub CI run and review the PR.
-4. Merge only after approval.
-5. Run migration 0004 and `scripts/bootstrap_conformance_agent.py` in production.
-6. Deploy and perform a production register → verify → report smoke test.
+- PR #18 merged to `main` as `e98559dc1b06c5e530df0057e815db15f9160ee8`.
+- Render deploy `dep-d9eh1tj7uimc73fjmfdg` completed successfully.
+- Startup logs confirmed migration `0003_agent_credential_version → 0004_verification_core`, `Bootstrap ensured: InteropConformanceAgent`, application startup, and Render health acceptance.
+- `/readyz` returns `200` with database available and schema current.
+- Live OpenAPI now exposes 51 paths, including root and `/v1` aliases for `/verify` and `/reports`.
+- Clearly labeled `CodexInteropSmoke_mrs3v0q2` completed the real register → verify → discover → direct-send → forward-poll → instructed-replay → fresh-nonce → finalize flow.
+- Run `3a65d5dc-ad82-4dbb-8fa3-5643370a0cd6` passed all eight checks with no verifier fault.
+- Public report: `https://agent-sandbox-xvx2.onrender.com/reports/eR1129MH5RLwvAdl` (complete 8/8, `0.1-draft`, unlisted by default).
+- The report JSON records engine commit `e98559d`; HTML, JSON badge, and SVG badge all serve successfully.
 
-No step above has been performed yet.
+Render did not start a build automatically after the merge even though the service setting reads **Auto-Deploy: On Commit**. Codex triggered the latest-commit deploy manually. Treat automatic deployment as unproven and verify the dashboard after future merges.
 
 ## Executive State
 
@@ -95,9 +101,9 @@ Their removal was verified after the manual cleanup. The GitHub repository and t
 ## Production Deployment Record
 
 - Render service ID: `srv-d7a57o15pdvs73c0g3cg`
-- Final configuration deploy: `dep-d9cjsvt7vvec73einrrg`
-- Deployed commit: `1be6d96eb69114aea9256c625d0703e696915eb6`
-- Render status at closeout: **Live** (48.9-second final configuration deploy)
+- Verification-core release deploy: `dep-d9eh1tj7uimc73fjmfdg`
+- Application code commit: `e98559dc1b06c5e530df0057e815db15f9160ee8`
+- Render status at closeout: **Live**
 
 Configured in Render without recording secret values:
 
@@ -123,8 +129,9 @@ Defaults remain active for event retention (90 days), HSTS (off on the Render su
 - `/docs` returned `200`.
 - An invalid `Host` header returned `403`.
 - CSP, Permissions-Policy, Referrer-Policy, `nosniff`, and frame-denial headers were present.
-- The manifest advertises the production base URL and the checked-in OpenAPI has 27 paths including forward inbox polling.
-- `/stats` showed zero usage.
+- The manifest advertises the production base URL and live OpenAPI now has 51 paths, including root and `/v1` verification/report routes.
+- The system-operated conformance partner is visibly labeled in `/agents`.
+- The Session 20 production verification run produced a complete 8/8 report and green badge while remaining absent from the public index by default.
 
 The first CORS probe exposed a stale wildcard Render value. Codex corrected the environment row to the single production origin and Render completed the final configuration deploy successfully. A new independent header probe from outside the managed browser sandbox is a useful smoke check during the first seed integration, but no further configuration change is expected.
 
@@ -157,6 +164,7 @@ The first CORS probe exposed a stale wildcard Render value. Codex corrected the 
 - [x] GitHub description, homepage, and discovery topics.
 - [x] Ready-to-paste seed and launch copy in `PROMOTION-COMMAND-CENTER.md`.
 - [x] Current hardened `main` deployed to Render.
+- [x] Durable verification core, conformance partner, public reports, and badges deployed and proven 8/8 in production.
 
 ## Remaining Operational Checklist
 
@@ -198,12 +206,12 @@ Optional, separately reviewed engineering work:
 
 ## Next Session — Start Here
 
-1. Review the local `agent/verification-core` branch, its commit series, and the Session 19 log entry.
-2. With maintainer approval, push the branch and open a PR; wait for and review all CI checks.
-3. After separate merge/deploy authorization, migrate production, run the idempotent conformance-agent bootstrap, deploy, and execute the production verification smoke flow.
-4. Then recruit 3–5 AutoGen, CrewAI, or LangGraph builders and collect real reports and integration friction.
-5. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership.
-6. Build the remote MCP interface and framework recipes after the verification core is proven with outside clients.
+1. Recruit 3–5 AutoGen, CrewAI, LangGraph, OpenAI Agents SDK, generic-MCP, or plain-HTTP builders and have each produce a real verification report.
+2. Capture framework, completion time, failed/not-observed checks, integration friction, and whether the builder publishes or returns to the report.
+3. Fix only friction proven by outside clients; keep the specification at `0.1-draft` until those thresholds are validated.
+4. In parallel, schedule daily retention, publish the dedicated contact, and record backup/alert ownership.
+5. Then build the remote MCP interface and verified five-minute framework recipes using the production verification flow.
+6. Verify the Render dashboard after every merge until automatic deployment is independently observed working.
 7. Keep broad Reddit/Show HN promotion gated on the five checklist boxes above.
 
 ## Durable Decisions
