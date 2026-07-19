@@ -92,3 +92,14 @@ async def get_current_agent(
         raise _unauthorized("Token has been revoked")
 
     return agent
+
+
+async def get_optional_agent(
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    session: AsyncSession = Depends(get_session),
+) -> Agent | None:
+    """Allow omitted credentials, but reject credentials that are invalid."""
+    if creds is None or not creds.credentials:
+        return None
+    return await get_current_agent(request, creds, session)

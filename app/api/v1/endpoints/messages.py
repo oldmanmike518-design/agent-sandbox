@@ -13,6 +13,13 @@ from app.services.abuse_control import consume_write_limit
 from app.services.auth import get_current_agent
 from app.services.events import log_event
 from app.services.rate_limit import enforce_message_limit
+from app.services.system_agents import CONFORMANCE_AGENT_ID
+from app.services.verification.observations import (
+    get_active_run,
+    record_observation,
+)
+from app.services.verification.outbox import drain_pending
+from app.services.verification.runs import advance_phase_on_observation
 
 router = APIRouter(prefix="/message")
 
@@ -118,7 +125,29 @@ async def send_message(
     )
 
     await session.flush()
+    active_run = await get_active_run(session, agent.id)
+    if active_run is not None:
+        token_match = None
+        if active_run.nonce and active_run.nonce in content:
+            token_match = "nonce"
+        elif active_run.fresh_nonce and active_run.fresh_nonce in content:
+            token_match = "fresh_nonce"
+        observation = await record_observation(
+            session,
+            active_run,
+            kind="message_send",
+            payload={
+                "message_id": msg.id,
+                "recipient_id": str(recipient_id) if recipient_id else None,
+                "is_partner": recipient_id == CONFORMANCE_AGENT_ID,
+                "token_match": token_match,
+                "content_len": len(content),
+            },
+        )
+        await advance_phase_on_observation(session, active_run, observation)
     await session.commit()
+    if active_run is not None:
+        await drain_pending(session, active_run.id)
 
     return MessageOut(
         id=msg.id,
@@ -171,6 +200,29 @@ async def inbox(
 
     next_before = items[-1].id if after_id is None and len(items) == limit else None
     next_after = items[-1].id if after_id is not None and items else None
+    active_run = await get_active_run(session, agent.id)
+    if active_run is not None:
+        partner_ids = [
+            message.id
+            for message in rows
+            if message.sender_id == CONFORMANCE_AGENT_ID
+        ]
+        observation = await record_observation(
+            session,
+            active_run,
+            kind="inbox_poll",
+            payload={
+                "after_id": after_id,
+                "before_id": before_id,
+                "limit": limit,
+                "served_partner_ids": partner_ids,
+                "served_count": len(rows),
+                "next_after_id": next_after,
+            },
+        )
+        await advance_phase_on_observation(session, active_run, observation)
+        await session.commit()
+        await drain_pending(session, active_run.id)
     return InboxResponse(
         items=items,
         next_before_id=next_before,
