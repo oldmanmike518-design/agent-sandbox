@@ -110,8 +110,13 @@ def test_migrations_create_expected_schema() -> None:
                 "transactions",
                 "event_logs",
                 "rate_limit_buckets",
+                "verification_runs",
+                "verification_reports",
+                "verification_report_publication",
+                "verification_observations",
+                "verification_outbox",
             } <= table_names
-            assert revision == "0003_agent_credential_version"
+            assert revision == "0004_verification_core"
             assert readiness.ready is True
             assert readiness.database == "available"
             assert readiness.schema == "current"
