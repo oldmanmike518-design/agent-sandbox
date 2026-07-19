@@ -8,11 +8,12 @@ from hashlib import sha256
 from ipaddress import ip_address
 
 from fastapi import Request
-from sqlalchemy import case, delete
+from sqlalchemy import case, delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.db.session import AsyncSessionLocal
 from app.models.rate_limit_bucket import RateLimitBucket
 
 
@@ -42,6 +43,13 @@ class RateLimitDecision:
         if not self.allowed:
             headers["Retry-After"] = str(self.reset_seconds)
         return headers
+
+
+@dataclass(frozen=True)
+class VerificationLimitDecision:
+    allowed: bool
+    headers: dict[str, str]
+    bucket_windows: list[dict]
 
 
 def get_client_ip(request: Request) -> str:
@@ -251,3 +259,66 @@ async def consume_write_limit(
         window_seconds=window_seconds or settings.WRITE_LIMIT_WINDOW_SECONDS,
         cleanup_expired=True,
     )
+
+
+async def consume_verification_limit(
+    request: Request,
+) -> VerificationLimitDecision:
+    now = datetime.now(timezone.utc)
+    rules = _hierarchical_rules(
+        request,
+        bucket_prefix="verify",
+        scope_prefix="verify",
+        client_limit=settings.VERIFY_RUNS_PER_IP_PER_DAY,
+        global_limit=settings.VERIFY_RUNS_GLOBAL_PER_DAY,
+    )
+    keys = [rule.bucket_key for rule in rules]
+    async with AsyncSessionLocal() as limiter_session:
+        decision: RateLimitDecision | None = None
+        for rule in rules:
+            decision = await _consume_rule(
+                limiter_session,
+                rule,
+                now=now,
+                window_seconds=86400,
+            )
+            if not decision.allowed:
+                await limiter_session.commit()
+                return VerificationLimitDecision(
+                    False, decision.headers, []
+                )
+        rows = (
+            await limiter_session.execute(
+                select(RateLimitBucket).where(
+                    RateLimitBucket.bucket_key.in_(keys)
+                )
+            )
+        ).scalars().all()
+        windows = [
+            {
+                "key": row.bucket_key,
+                "window_ends_at": row.window_ends_at.isoformat(),
+            }
+            for row in rows
+        ]
+        await limiter_session.commit()
+        assert decision is not None
+        return VerificationLimitDecision(
+            True, decision.headers, windows
+        )
+
+
+async def refund_verification_limit(
+    session: AsyncSession, bucket_windows: list[dict]
+) -> None:
+    for entry in bucket_windows:
+        await session.execute(
+            update(RateLimitBucket)
+            .where(
+                RateLimitBucket.bucket_key == entry["key"],
+                RateLimitBucket.window_ends_at
+                == datetime.fromisoformat(entry["window_ends_at"]),
+                RateLimitBucket.count > 0,
+            )
+            .values(count=RateLimitBucket.count - 1)
+        )
