@@ -914,3 +914,12 @@ The saturation knee is between concurrency 50 and 100 (throughput regresses and 
 4. Recruit 3–5 real outside framework builders for the controlled seed (maintainer accounts; seed copy is ready in `PROMOTION-COMMAND-CENTER.md`).
 
 Broad-launch gate status after this session: staging envelope ✅; retention scheduling, public contact, backup/alert ownership, and three real outside integrations remain.
+
+### Session 17 publication and workspace closeout (Codex)
+
+- Reviewed the three-file Session 17 documentation diff and confirmed it contained only the smoke-test, load-test, and handoff updates.
+- Committed the work as `8dbec31` on `agent/session-17-capacity-handoff`, pushed the branch, and opened draft PR #17. GitHub CI completed successfully for test, integration, and secret-scan jobs.
+- Rechecked production: `/readyz` returned `200` with database available and schema current, and `/healthz` returned `200`; the warm readiness request completed in about 0.29 seconds.
+- Confirmed `/Users/michaellanger/Projects/agent-sandbox` as the sole canonical workspace for Codex, Claude, Gemini, and other tools.
+- Verified the Codex Session 16 checkout under `Documents/Codex` was a clean duplicate and the `Documents/bug-bounties/agent-sandbox` checkout was obsolete. Automated removal was blocked by macOS permissions; the maintainer then moved both to Trash manually, and Codex verified both paths were absent. No changes needed combining.
+- Updated the tool handoff so the next session begins with PR #17 review/merge, controlled-seed recruitment, and the remaining operational gates—not another engineering audit.
