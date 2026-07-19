@@ -6,8 +6,8 @@ _Updated 2026-07-19 after PR #18, production migration/bootstrap, and the 8/8 ve
 
 - URL: https://agent-sandbox-xvx2.onrender.com
 - Render service: `srv-d7a57o15pdvs73c0g3cg`
-- Live application commit: `e98559dc1b06c5e530df0057e815db15f9160ee8`
-- Current deploy: `dep-d9eh1tj7uimc73fjmfdg`
+- Verification-core application commit: `e98559dc1b06c5e530df0057e815db15f9160ee8`
+- Verification-core release deploy: `dep-d9eh1tj7uimc73fjmfdg`
 - Health check: `/readyz`
 - Instance: Render Free (cold starts after inactivity are expected)
 

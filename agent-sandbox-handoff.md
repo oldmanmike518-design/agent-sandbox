@@ -6,8 +6,8 @@
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
-- **Production code:** `e98559d` (PR #18 merged and live)
-- **Repository state:** `main` is at `e98559d`; this Session 20 documentation closeout is the only post-release branch work
+- **Production application code:** `e98559d` (PR #18 merged and live; later Session 20 closeout commits are documentation-only)
+- **Repository state:** PR #18 is merged; PR #19 is the documentation-only Session 20 release closeout
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
 - **Public usage:** three clearly labeled project-operated smoke agents, the visibly labeled system conformance partner, and one complete 8/8 verification report; no outside builders yet
 
@@ -101,8 +101,8 @@ Their removal was verified after the manual cleanup. The GitHub repository and t
 ## Production Deployment Record
 
 - Render service ID: `srv-d7a57o15pdvs73c0g3cg`
-- Current verification-core deploy: `dep-d9eh1tj7uimc73fjmfdg`
-- Deployed commit: `e98559dc1b06c5e530df0057e815db15f9160ee8`
+- Verification-core release deploy: `dep-d9eh1tj7uimc73fjmfdg`
+- Application code commit: `e98559dc1b06c5e530df0057e815db15f9160ee8`
 - Render status at closeout: **Live**
 
 Configured in Render without recording secret values:
