@@ -2,12 +2,12 @@
 
 > Authoritative current state and execution order. Read this first. Historical detail is append-only in `agent-sandbox-log.md`.
 
-- **Last updated:** 2026-07-19 — Session 17 closeout (production smoke pass, capacity envelope, workspace consolidation, and PR #17)
+- **Last updated:** 2026-07-19 — Session 18 (PR #17 merged; agent-native distribution strategy adopted)
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
 - **Production code:** `main` baseline `1be6d96` (PRs #10–#15 merged)
-- **Repository state:** `main` is at Session 16 commit `78e1a3d`; Session 17 documentation is committed as `8dbec31` on `agent/session-17-capacity-handoff` in draft PR #17
+- **Repository state:** `main` is at `8faf95c` (PR #17 merged 2026-07-19). Uncommitted working-tree documentation awaiting maintainer review: Session 18 strategy updates (this handoff, `PROMOTION-COMMAND-CENTER.md`, `agent-sandbox-log.md`), `docs/VERIFICATION_PIVOT_DESIGN.md`, and `docs/plans/2026-07-19-verification-core.md`
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
 - **Public usage:** two clearly-labeled project-operated smoke agents and one broadcast (2026-07-19 end-to-end check); no outside builders yet
 
@@ -151,18 +151,24 @@ Optional, separately reviewed engineering work:
 
 ## Next Session — Start Here
 
-1. Work only in `/Users/michaellanger/Projects/agent-sandbox`; pull current `main`, then read this handoff and the latest log entry.
-2. Review and merge draft PR #17 (documentation only; CI test, integration, and secret-scan jobs passed on 2026-07-19).
-3. Open `PROMOTION-COMMAND-CENTER.md`.
-4. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed; use transparent project-operated agents only for support/status, never fake users.
-5. Have outside builders repeat the proven register → discover → message → forward-poll inbox → stats flow and capture framework, setup friction, latency, failures, cross-agent interaction, and return behavior.
-6. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership (the staging load test is done).
-7. Once all five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN.
-8. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips—not vanity page views.
+Follow the adopted distribution sequence (Session 18 decision; details in `PROMOTION-COMMAND-CENTER.md`):
+
+1. Work only in `/Users/michaellanger/Projects/agent-sandbox`; pull current `main`, then read this handoff and the latest log entry. (PR #17 was merged 2026-07-19; `main` is `8faf95c`.)
+2. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed, in parallel with step 3 — recruiting has lead time, and arrivals should meet the conformance experience.
+3. Design and build the transparent, always-on **`InteropConformanceAgent`**: responds to any new agent, runs a deterministic interop exchange (message round-trip, forward-poll cursor, duplicate-poll protection, malformed-input recovery), and returns a machine-readable pass/fail report a builder can link or badge. Deployment of the agent needs maintainer authorization.
+4. Build a remote MCP interface over the existing API (`register_agent`, `discover_agents`, `send_message`, `poll_inbox`, `get_stats`); submit to the official MCP Registry only once it genuinely implements the protocol.
+5. Publish five-minute AutoGen, CrewAI, LangGraph, and generic-MCP recipes; have outside builders repeat the proven register → discover → message → forward-poll → stats flow and capture framework, setup friction, latency, failures, and return behavior.
+6. Watch for shared-egress-IP registration throttling (5/IP/hour) during the seed — expected first friction point for cloud-hosted agents.
+7. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership (the staging load test is done).
+8. Produce searchable technical content and real integration reports; count on search indexing and links now, treat model-training inclusion as an uncontrollable long-term bonus.
+9. Add genuine A2A compatibility only when prepared to implement the protocol properly — never by renaming the existing manifest.
+10. Once all five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips — not vanity page views.
 
 ## Durable Decisions
 
 - Positioning: **a public interoperability and integration-test sandbox where builders test agents against agents they did not build.**
+- Vision (adopted 2026-07-19, Codex + Claude concurring): **Agent Sandbox is the place builders send their agents to prove interoperability against systems they did not build — while remaining directly usable by the agents themselves.** The first audience is builders bringing agents, not a swarm of roaming agents; "agents independently encountering the sandbox" is the eventual flywheel, not the entry strategy.
+- Distribution roads, in leverage order: seed builders → always-on conformance partner → remote MCP server + official registry → framework recipes → searchable content/reports → honest A2A when warranted.
 - Internal credits are non-monetary, non-convertible, non-purchasable, and non-redeemable.
 - Public wallet receiving addresses and required memos stay visible by design; private keys, seed phrases, credentials, and production secrets never enter the repository.
 - Sponsored quests are the strongest first monetization experiment after real usage exists.
