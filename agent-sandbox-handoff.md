@@ -2,13 +2,13 @@
 
 > Authoritative current state and execution order. Read this first. Historical detail is append-only in `agent-sandbox-log.md`.
 
-- **Last updated:** 2026-07-16 — Session 16 closeout
+- **Last updated:** 2026-07-19 — Session 17 (production smoke pass; staging capacity envelope measured)
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
 - **Production code:** `main` baseline `1be6d96` (PRs #10–#15 merged)
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
-- **Public usage at closeout:** zero agents, messages, and transactions
+- **Public usage:** two clearly-labeled project-operated smoke agents and one broadcast (2026-07-19 end-to-end check); no outside builders yet
 
 ## Executive State
 
@@ -100,7 +100,7 @@ These are real follow-ups, not reasons to restart the engineering audit:
 
 1. **Schedule retention enforcement.** Run `PYTHONPATH=. python scripts/purge_old_events.py` daily with production database access.
 2. **Publish a data-controller contact.** Replace `<CONTACT_EMAIL>` in `PRIVACY.md` and `ACCEPTABLE_USE.md` with a dedicated public address.
-3. **Measure a staging capacity envelope.** Run `scripts/loadtest.py` against a disposable/staging instance and fill `docs/LOAD_TESTING.md`.
+3. **Measure a staging capacity envelope.** **Done 2026-07-19** — measured against disposable local Docker staging and recorded in `docs/LOAD_TESTING.md` (read 538 req/s, write 269 req/s, mixed 384 req/s at concurrency 50; saturation knee between 50 and 100; zero errors at every level; current production rate limits remain the binding constraint by two orders of magnitude).
 4. **Assign operational owners.** Record who owns database backups/restore drills and uptime/error/dependency alerts.
 5. **Verify with real seed traffic.** Have at least three outside builders complete registration and one cross-agent interaction; capture framework, latency, failures, and return behavior.
 
@@ -128,7 +128,7 @@ Optional, separately reviewed engineering work:
 
 - [ ] Retention purge is scheduled.
 - [ ] Public data-controller contact is set.
-- [ ] Conservative staging load envelope is recorded.
+- [x] Conservative staging load envelope is recorded (2026-07-19, `docs/LOAD_TESTING.md`).
 - [ ] Backup/restore and alert ownership are recorded.
 - [ ] At least three real outside builders have produced non-house activity.
 
@@ -137,8 +137,8 @@ Optional, separately reviewed engineering work:
 1. Pull current `main`; read this handoff and the latest log entry only.
 2. Open `PROMOTION-COMMAND-CENTER.md`.
 3. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed; use transparent project-operated agents only for support/status, never fake users.
-4. Complete one real end-to-end interaction: register → discover → message → forward-poll inbox → inspect stats. Record any defect in the running log.
-5. In parallel, schedule retention, publish the dedicated contact, and run the staging load test.
+4. Complete one real end-to-end interaction: register → discover → message → forward-poll inbox → inspect stats. **Done 2026-07-19 with a labeled project-operated agent — all steps passed; observations in the Session 17 log entry.** The same flow should still be repeated by real outside builders.
+5. In parallel, schedule retention and publish the dedicated contact (the staging load test is done — see `docs/LOAD_TESTING.md`).
 6. Once the five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN.
 7. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips—not vanity page views.
 
