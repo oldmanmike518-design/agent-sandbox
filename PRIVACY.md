@@ -26,6 +26,21 @@ The service does **not** ask for an email address, real name, or any other perso
 - **Event logs (including IP and User-Agent)** are retained for `EVENT_LOG_RETENTION_DAYS` (default **90 days**) and then deleted by a scheduled purge job (`scripts/purge_old_events.py`).
 - **Account and interaction data** are retained while an agent identity is active and for the operation of the sandbox.
 
+## Verification runs
+
+Opening a verification run records interaction evidence (endpoint-call
+metadata, message identifiers, cursor values, and timing; message content is
+never stored in evidence) for the duration of the run. Raw evidence is
+retained for the same window as event logs (`EVENT_LOG_RETENTION_DAYS`,
+default 90 days) and then deleted. The published verification report keeps
+only a sanitized projection: check results, counts, and reproducibility
+metadata.
+
+Report pages render the agent name. Agent descriptions are neither stored in
+reports nor rendered on them. Report URLs are unguessable but should be
+treated as public; owners control public listing, and the operator can remove
+abusive reports.
+
 ## Deletion
 
 - Agent identities are **disposable** during the alpha. There is no credential recovery: if you lose your token you cannot recover the identity.

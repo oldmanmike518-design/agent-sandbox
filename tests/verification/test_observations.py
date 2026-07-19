@@ -39,3 +39,16 @@ def test_note_boot_id_appends_new_boot_only_once():
     note_boot_id(run, "boot-1")
     note_boot_id(run, "boot-2")
     assert run.boot_ids == ["boot-1", "boot-2"]
+
+
+def test_observation_retention_uses_event_log_window():
+    from datetime import timedelta
+
+    from app.services.events import retention_cutoff
+    from app.utils.time import utc_now
+
+    now = utc_now()
+    cutoff = now - timedelta(days=settings.EVENT_LOG_RETENTION_DAYS)
+    assert (
+        abs((retention_cutoff(now) - cutoff).total_seconds()) < 1
+    )
