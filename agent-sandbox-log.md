@@ -872,3 +872,54 @@ After the corrected CORS value triggered the final deploy, Render showed the sam
 3. Measure and record a staging capacity envelope.
 4. Assign database backup/restore and alert owners.
 5. Complete real integrations with at least three outside framework builders.
+
+## 2026-07-19 — Session 17: Production Smoke Pass and Measured Capacity Envelope (Claude)
+
+Local session on the maintainer's machine. Fast-forwarded the canonical checkout to `origin/main` (`78e1a3d`, Session 16 closeout), then executed the two "Next Session" items that were possible without the personal browser or a maintainer decision: the production end-to-end smoke interaction and the staging capacity measurement. No pushes, no deploys, no provider changes; documentation edits are local and uncommitted pending maintainer review.
+
+### Production end-to-end smoke interaction (handoff step 4)
+
+Ran register → discover → broadcast → forward-poll inbox → stats against `https://agent-sandbox-xvx2.onrender.com` using a clearly-labeled project-operated agent (`SandboxSmokeCheck_*`, description states it is a maintainer smoke test, not a real user). All steps passed:
+
+- Cold start: first `/readyz` took ~33.5 s then returned `200 {"status":"ready","database":"available","schema":"current"}` — matches the documented Render free-tier behavior.
+- `/register` → `200` with token and agent id; `/agents` → `200`.
+- Broadcast `/message/send` → `200`; `/message/inbox?after_id=0` returned the message with `next_after_id=1`; polling again from the cursor returned zero items (no reprocessing — the forward-polling contract holds in production).
+- `/stats` → `200`: 2 agents, 1 message, 0 transactions.
+
+Two labeled smoke agents now exist in production (a first script attempt registered before a client-side script bug aborted it; the bug was in the throwaway test script, not the API). No bearer tokens or secrets were recorded.
+
+### Observations (no launch blockers)
+
+1. **`agents_active_24h` counts only `/ping` heartbeats.** `last_seen_at` is updated exclusively in the ping endpoint, so an agent that registers and messages but never pings shows as inactive and the stat reads 0 even during real use. Semantics, not a defect — but consider bumping `last_seen_at` on authenticated writes, or documenting that the stat means "agents heartbeating via /ping."
+2. **Compose startup race.** On a cold `docker compose up --build`, the API container can start before PostgreSQL finishes initializing, crash on connection-refused, and stay exited (`depends_on` has no health condition and no restart policy). A manual container restart fixes it. Optional small fix: add a `pg_isready` healthcheck to `db` and `condition: service_healthy` to the api's `depends_on`.
+
+### Staging capacity envelope (handoff checklist item 3)
+
+Stood up the disposable staging stack locally (Docker compose api + postgres:16 + redis:7) with the rate limits raised per `docs/LOAD_TESTING.md` via a compose override kept outside the repo, ran `scripts/loadtest.py`, then destroyed the stack and its volumes. Measured (all responses `200`, zero errors at every level):
+
+| Scenario | Concurrency | Throughput | p50 | p95 | p99 |
+|---|---|---|---|---|---|
+| read | 25 | 537.6 req/s | 36.1 ms | 123.5 ms | 311.5 ms |
+| write | 25 | 269.3 req/s | 81.6 ms | 171.5 ms | 258.8 ms |
+| mixed | 50 | 383.7 req/s | 111.6 ms | 271.4 ms | 357.6 ms |
+| mixed | 100 | 301.4 req/s | 224.7 ms | 767.3 ms | 2222.7 ms |
+
+The saturation knee is between concurrency 50 and 100 (throughput regresses and p99 exceeds 2 s at 100). Full numbers and conservatively derived production settings are recorded in `docs/LOAD_TESTING.md`: treat ~25 concurrent requests as the safe public-alpha envelope, keep current production rate limits (they bind two orders of magnitude below measured capacity), single instance is sufficient for the controlled seed. Local Apple-Silicon staging is an upper bound on the weaker production tier.
+
+### Remaining operational work
+
+1. Schedule the daily event-retention purge (personal browser, Render cron).
+2. Publish a dedicated data-controller contact in `PRIVACY.md`/`ACCEPTABLE_USE.md` (maintainer decision).
+3. Assign database backup/restore and alert owners.
+4. Recruit 3–5 real outside framework builders for the controlled seed (maintainer accounts; seed copy is ready in `PROMOTION-COMMAND-CENTER.md`).
+
+Broad-launch gate status after this session: staging envelope ✅; retention scheduling, public contact, backup/alert ownership, and three real outside integrations remain.
+
+### Session 17 publication and workspace closeout (Codex)
+
+- Reviewed the three-file Session 17 documentation diff and confirmed it contained only the smoke-test, load-test, and handoff updates.
+- Committed the work as `8dbec31` on `agent/session-17-capacity-handoff`, pushed the branch, and opened draft PR #17. GitHub CI completed successfully for test, integration, and secret-scan jobs.
+- Rechecked production: `/readyz` returned `200` with database available and schema current, and `/healthz` returned `200`; the warm readiness request completed in about 0.29 seconds.
+- Confirmed `/Users/michaellanger/Projects/agent-sandbox` as the sole canonical workspace for Codex, Claude, Gemini, and other tools.
+- Verified the Codex Session 16 checkout under `Documents/Codex` was a clean duplicate and the `Documents/bug-bounties/agent-sandbox` checkout was obsolete. Automated removal was blocked by macOS permissions; the maintainer then moved both to Trash manually, and Codex verified both paths were absent. No changes needed combining.
+- Updated the tool handoff so the next session begins with PR #17 review/merge, controlled-seed recruitment, and the remaining operational gates—not another engineering audit.

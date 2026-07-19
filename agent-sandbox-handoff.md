@@ -2,13 +2,14 @@
 
 > Authoritative current state and execution order. Read this first. Historical detail is append-only in `agent-sandbox-log.md`.
 
-- **Last updated:** 2026-07-16 — Session 16 closeout
+- **Last updated:** 2026-07-19 — Session 17 closeout (production smoke pass, capacity envelope, workspace consolidation, and PR #17)
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
 - **Production code:** `main` baseline `1be6d96` (PRs #10–#15 merged)
+- **Repository state:** `main` is at Session 16 commit `78e1a3d`; Session 17 documentation is committed as `8dbec31` on `agent/session-17-capacity-handoff` in draft PR #17
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
-- **Public usage at closeout:** zero agents, messages, and transactions
+- **Public usage:** two clearly-labeled project-operated smoke agents and one broadcast (2026-07-19 end-to-end check); no outside builders yet
 
 ## Executive State
 
@@ -28,6 +29,21 @@ The service is now a live, clearly experimental public alpha with:
 - a repeatable staging load-test harness.
 
 **Launch posture:** the controlled seed launch is open now. Invite 3–5 real framework builders and connect genuine agents. Do not manufacture fake traffic. The one-time broad Show HN/Reddit launch remains gated on real seed activity and the short operational checklist below.
+
+## Workspace and Tool Handoff
+
+This repository is tool-neutral: Codex, Claude, Gemini, or another coding agent may continue the work, but every tool must use only:
+
+`/Users/michaellanger/Projects/agent-sandbox`
+
+Start by checking out current `main`, pulling from `origin`, reading this file, and reading only the latest entry in `agent-sandbox-log.md`. Follow `AGENTS.md`. Do not copy work between checkouts.
+
+Two redundant checkouts were verified as non-canonical, contained no work that needed combining, and were manually moved to Trash by the maintainer on 2026-07-19:
+
+- `/Users/michaellanger/Documents/Codex/2026-07-16/oldmanmike518-design-agent-sandbox-https-github` — clean Session 16 duplicate.
+- `/Users/michaellanger/Documents/bug-bounties/agent-sandbox` — obsolete May checkout.
+
+Their removal was verified after the manual cleanup. The GitHub repository and the canonical `Projects` checkout are now the only sources of truth.
 
 ## Production Deployment Record
 
@@ -51,6 +67,7 @@ Defaults remain active for event retention (90 days), HSTS (off on the Render su
 
 ### Live verification completed
 
+- On 2026-07-19 after the Session 17 documentation push, an independent check returned `/readyz` `200` with database available and schema current and `/healthz` `200`; the warm readiness response completed in about 0.29 seconds.
 - `/` opened as the Agent Sandbox homepage.
 - `/readyz` returned `200` with the database available and schema current.
 - `/healthz` returned `200`.
@@ -100,7 +117,7 @@ These are real follow-ups, not reasons to restart the engineering audit:
 
 1. **Schedule retention enforcement.** Run `PYTHONPATH=. python scripts/purge_old_events.py` daily with production database access.
 2. **Publish a data-controller contact.** Replace `<CONTACT_EMAIL>` in `PRIVACY.md` and `ACCEPTABLE_USE.md` with a dedicated public address.
-3. **Measure a staging capacity envelope.** Run `scripts/loadtest.py` against a disposable/staging instance and fill `docs/LOAD_TESTING.md`.
+3. **Measure a staging capacity envelope.** **Done 2026-07-19** — measured against disposable local Docker staging and recorded in `docs/LOAD_TESTING.md` (read 538 req/s, write 269 req/s, mixed 384 req/s at concurrency 50; saturation knee between 50 and 100; zero errors at every level; current production rate limits remain the binding constraint by two orders of magnitude).
 4. **Assign operational owners.** Record who owns database backups/restore drills and uptime/error/dependency alerts.
 5. **Verify with real seed traffic.** Have at least three outside builders complete registration and one cross-agent interaction; capture framework, latency, failures, and return behavior.
 
@@ -128,19 +145,20 @@ Optional, separately reviewed engineering work:
 
 - [ ] Retention purge is scheduled.
 - [ ] Public data-controller contact is set.
-- [ ] Conservative staging load envelope is recorded.
+- [x] Conservative staging load envelope is recorded (2026-07-19, `docs/LOAD_TESTING.md`).
 - [ ] Backup/restore and alert ownership are recorded.
 - [ ] At least three real outside builders have produced non-house activity.
 
 ## Next Session — Start Here
 
-1. Pull current `main`; read this handoff and the latest log entry only.
-2. Open `PROMOTION-COMMAND-CENTER.md`.
-3. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed; use transparent project-operated agents only for support/status, never fake users.
-4. Complete one real end-to-end interaction: register → discover → message → forward-poll inbox → inspect stats. Record any defect in the running log.
-5. In parallel, schedule retention, publish the dedicated contact, and run the staging load test.
-6. Once the five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN.
-7. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips—not vanity page views.
+1. Work only in `/Users/michaellanger/Projects/agent-sandbox`; pull current `main`, then read this handoff and the latest log entry.
+2. Review and merge draft PR #17 (documentation only; CI test, integration, and secret-scan jobs passed on 2026-07-19).
+3. Open `PROMOTION-COMMAND-CENTER.md`.
+4. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed; use transparent project-operated agents only for support/status, never fake users.
+5. Have outside builders repeat the proven register → discover → message → forward-poll inbox → stats flow and capture framework, setup friction, latency, failures, cross-agent interaction, and return behavior.
+6. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership (the staging load test is done).
+7. Once all five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN.
+8. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips—not vanity page views.
 
 ## Durable Decisions
 
