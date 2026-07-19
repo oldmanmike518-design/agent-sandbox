@@ -39,6 +39,21 @@ class Settings(BaseSettings):
     # job deletes them. See PRIVACY.md.
     EVENT_LOG_RETENTION_DAYS: int = Field(default=90, ge=1, le=3650)
 
+    # Verification (Interop rest-interop v1.0). Thresholds are PROVISIONAL
+    # until validated and published in docs/INTEROP_SPEC.md v1.0.
+    VERIFY_RUN_DEADLINE_SECONDS_DEFAULT: int = Field(default=900, ge=60, le=1800)
+    VERIFY_RUN_DEADLINE_SECONDS_MAX: int = Field(default=1800, ge=60, le=3600)
+    VERIFY_RUNS_PER_AGENT_PER_DAY: int = Field(default=10, ge=1)
+    VERIFY_RUNS_PER_IP_PER_DAY: int = Field(default=20, ge=1)
+    VERIFY_RUNS_GLOBAL_PER_DAY: int = Field(default=200, ge=1)
+    VERIFY_MAX_OBSERVATIONS_PER_RUN: int = Field(default=500, ge=10)
+    VERIFY_MAX_OUTBOX_PER_RUN: int = Field(default=20, ge=5)
+    VERIFY_POLL_FLOOR_MS: int = Field(default=250, ge=0)
+    VERIFY_STALL_CEILING_SECONDS: int = Field(default=300, ge=30)
+    VERIFY_OBSERVATION_MAX_BYTES: int = Field(default=4096, ge=256)
+    VERIFY_OUTBOX_MAX_ATTEMPTS: int = Field(default=5, ge=1)
+    VERIFY_OUTBOX_LEASE_SECONDS: int = Field(default=60, ge=5)
+
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     OWNER_MESSAGE: str = "Built in Cairo. Open to the universe."
