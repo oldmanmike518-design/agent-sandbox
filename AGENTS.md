@@ -5,7 +5,7 @@ This is the canonical Agent Sandbox workspace.
 Before working:
 
 1. Read `agent-sandbox-handoff.md` for current state and ordered work. **The handoff is the authoritative execution order.**
-2. Read `agent-sandbox-log.md` for durable history and audit findings. **The running log preserves the Codex audit (Session 2), Claude's independent review (Session 3), the merged engineering sprint (Session 15), the production/deployment closeout (Session 16), and the production smoke/capacity closeout (Session 17).** Do not rewrite or delete prior sessions.
+2. Read `agent-sandbox-log.md` for durable history and audit findings. **The running log preserves the Codex audit (Session 2), Claude's independent review (Session 3), the merged engineering sprint (Session 15), the original production closeout (Session 16), smoke/capacity closeout (Session 17), adopted verification strategy (Session 18), implementation (Session 19), and verification-core production release (Session 20).** Do not rewrite or delete prior sessions.
 3. Use `DEPLOYMENT_HANDOFF.md` for production facts and `PROMOTION-COMMAND-CENTER.md` for the controlled seed/broad-launch sequence. Consult `agent-sandbox-brief.md`, `MARKETING-PLAN.md`, and `SECURITY.md` as supporting context.
 
 Working rules:

@@ -990,3 +990,78 @@ no PR was opened, and production was not changed.
 Local implementation and verification are complete. Push, PR creation,
 production migration, conformance-agent bootstrap, and deployment remain
 explicitly unauthorized and undone.
+
+## 2026-07-19 — Session 20: Verification Core Reviewed, Merged, and Proven Live (Codex)
+
+With explicit maintainer authorization, Codex took the completed local
+verification branch through independent review, GitHub publication, CI,
+merge, production deployment, and a full public-contract smoke run.
+
+### Release review corrections
+
+- Found that a pre-existing mixed-case reserved-name conflict could commit the
+  stable system row before post-commit validation failed. Moved UUID and
+  case-insensitive name validation into the insert transaction, rolling back
+  every conflict without a partial system row.
+- Added a disposable-PostgreSQL regression proving the mixed-case conflict
+  leaves the stable UUID absent.
+- Render Free has no shell access or one-off jobs. Added the existing
+  idempotent bootstrap command to `scripts/start.sh` after Alembic and before
+  Uvicorn, so every deploy performs migration → validated bootstrap → API
+  startup.
+
+### Local and GitHub verification
+
+- Unit suite with deprecation warnings as errors: **114 passed**.
+- Full PostgreSQL/Redis integration directory: **37 passed**.
+- Ruff, Python compilation, shell syntax, Compose validation, and whitespace:
+  clean.
+- Review fix committed as `eb292f5`.
+- Draft PR #18 opened, then test, integration, and full-history secret-scan
+  jobs all passed.
+- PR #18 was marked ready and merged to `main` as
+  `e98559dc1b06c5e530df0057e815db15f9160ee8`.
+
+### Production release
+
+Render did not begin a build after the merge even though Settings reports
+**Auto-Deploy: On Commit**. Codex used the authenticated dashboard's
+**Manual Deploy → Deploy latest commit** action.
+
+Deploy `dep-d9eh1tj7uimc73fjmfdg` checked out `e98559d`, built successfully,
+ran Alembic upgrade `0003_agent_credential_version → 0004_verification_core`,
+printed `Bootstrap ensured: InteropConformanceAgent`, started Uvicorn, passed
+Render health checking, and became Live.
+
+Post-deploy probes:
+
+- `/readyz` → `200`, database available, schema current.
+- Live OpenAPI → 51 paths with root and `/v1` verification/report aliases.
+- `InteropConformanceAgent` is discoverable and visibly
+  `system_operated=true`.
+
+### Production public-contract smoke
+
+Registered clearly labeled project-operated agent
+`CodexInteropSmoke_mrs3v0q2` and drove only the public HTTP contracts:
+open verification → authenticated discovery → plain direct message → forward
+inbox poll → initial nonce echo → instructed overlap replay without a second
+echo → forward poll → fresh-nonce echo → status → finalize.
+
+- Run: `3a65d5dc-ad82-4dbb-8fa3-5643370a0cd6`.
+- Pre-finalize phase: `finalizable`.
+- All eight checks: **PASS**.
+- Report: `https://agent-sandbox-xvx2.onrender.com/reports/eR1129MH5RLwvAdl`.
+- Result: complete **8/8**, `0.1-draft`, zero `NOT_OBSERVED`, no verifier
+  fault, engine commit `e98559d`.
+- JSON badge: bright green; SVG badge and HTML report both returned `200`.
+- Report remained unlisted by default.
+- No bearer token or provider credential was printed, stored, or committed.
+
+### New execution boundary
+
+The verification build/release is complete. The next phase is outside-client
+validation: recruit 3–5 real framework builders, collect their reports and
+friction, and adjust draft thresholds only from observed evidence. Retention
+scheduling, the public contact, and backup/alert ownership remain open
+operational gates.
