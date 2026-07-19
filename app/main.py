@@ -14,7 +14,11 @@ from app.api.v1.router import router as api_router
 from app.core.config import settings
 from app.core.discovery import build_agent_manifest, build_llms_txt
 from app.core.logging import configure_logging
-from app.core.middleware import MaxBodySizeMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import (
+    MaxBodySizeMiddleware,
+    SecurityHeadersMiddleware,
+    VerifierIncidentMiddleware,
+)
 from app.db.session import get_session
 from app.services.auth import require_metrics_key
 from app.services.rate_limit import close_redis
@@ -67,6 +71,7 @@ def create_app() -> FastAPI:
     # headers on every response (including rejections).
     app.add_middleware(MaxBodySizeMiddleware, max_bytes=settings.MAX_REQUEST_BYTES)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_list)
+    app.add_middleware(VerifierIncidentMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
 
     # API routes (root + versioned alias)

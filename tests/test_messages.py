@@ -17,6 +17,17 @@ from app.schemas.message import MessageSendRequest
 from app.services.abuse_control import RateLimitDecision
 
 
+@pytest.fixture(autouse=True)
+def _no_active_verification_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _none(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.messages.get_active_run",
+        _none,
+    )
+
+
 class _Scalars:
     def __init__(self, values: list[Message]) -> None:
         self.values = values

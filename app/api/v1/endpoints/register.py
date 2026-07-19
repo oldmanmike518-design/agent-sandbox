@@ -12,6 +12,7 @@ from app.schemas.agent import AgentMe, RegisterRequest, RegisterResponse
 from app.services.abuse_control import consume_registration_limit
 from app.services.auth import create_jwt
 from app.services.events import log_event
+from app.services.system_agents import is_reserved_agent_name
 from app.services.tip_jar import build_tip_jar
 from app.utils.validation import validate_agent_name
 
@@ -38,6 +39,9 @@ async def register_agent(
         name = validate_agent_name(body.name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    if is_reserved_agent_name(name):
+        raise HTTPException(status_code=409, detail="Agent name is reserved")
 
     description = body.description.strip()
     if len(description) > settings.MAX_DESCRIPTION_CHARS:

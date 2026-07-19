@@ -43,6 +43,70 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class VerifierIncidentMiddleware(BaseHTTPMiddleware):
+    """Best-effort capture of verifier 5xx responses during active runs."""
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        try:
+            response = await call_next(request)
+        except Exception:
+            try:
+                await _record_verifier_incident(request, 500)
+            except Exception:  # noqa: BLE001
+                pass
+            raise
+        if response.status_code >= 500:
+            try:
+                await _record_verifier_incident(
+                    request, response.status_code
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return response
+
+
+async def _record_verifier_incident(
+    request: Request, status_code: int
+) -> None:
+    from uuid import UUID
+
+    import jwt
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from app.db.session import AsyncSessionLocal
+    from app.services.verification.observations import get_active_run
+    from app.utils.time import utc_now
+
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return
+    payload = jwt.decode(
+        auth[7:],
+        settings.JWT_SECRET,
+        algorithms=["HS256"],
+        options={"require": ["sub"]},
+        issuer=settings.JWT_ISSUER,
+    )
+    agent_id = UUID(payload["sub"])
+    async with AsyncSessionLocal() as session:
+        run = await get_active_run(session, agent_id)
+        if run is None:
+            return
+        run.verifier_incidents = [
+            *run.verifier_incidents,
+            {
+                "path": request.url.path,
+                "status": status_code,
+                "at": utc_now().isoformat(),
+            },
+        ]
+        run.verifier_fault = True
+        flag_modified(run, "verifier_incidents")
+        await session.commit()
+
+
 class MaxBodySizeMiddleware:
     """Reject requests whose declared body exceeds the configured cap.
 

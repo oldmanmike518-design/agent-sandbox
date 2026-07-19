@@ -33,6 +33,10 @@ from app.services.auth import create_jwt, get_current_agent
 from app.services.events import purge_expired_events
 from app.services.rate_limit import close_redis, enforce_message_limit, get_redis
 from app.services.readiness import check_readiness
+from app.services.system_agents import (
+    CONFORMANCE_AGENT_ID,
+    ensure_conformance_agent,
+)
 
 
 pytestmark = pytest.mark.skipif(
@@ -110,8 +114,13 @@ def test_migrations_create_expected_schema() -> None:
                 "transactions",
                 "event_logs",
                 "rate_limit_buckets",
+                "verification_runs",
+                "verification_reports",
+                "verification_report_publication",
+                "verification_observations",
+                "verification_outbox",
             } <= table_names
-            assert revision == "0003_agent_credential_version"
+            assert revision == "0004_verification_core"
             assert readiness.ready is True
             assert readiness.database == "available"
             assert readiness.schema == "current"
@@ -167,6 +176,36 @@ def test_duplicate_registration_is_safe_under_concurrency() -> None:
             assert len(conflicts) == 1
             assert agent_count == 1
             assert minted_credits == settings.STARTING_CREDITS
+
+    asyncio.run(_run())
+
+
+def test_conformance_bootstrap_conflict_commits_no_partial_system_row() -> None:
+    async def _run() -> None:
+        async for session_factory, _engine in _session_factory():
+            await _reset_database(session_factory)
+            async with session_factory() as session:
+                session.add(
+                    Agent(
+                        name="interopconformanceagent",
+                        description="pre-existing mixed-case conflict",
+                    )
+                )
+                await session.commit()
+
+            with pytest.raises(RuntimeError):
+                async with session_factory() as session:
+                    await ensure_conformance_agent(session)
+
+            async with session_factory() as session:
+                stable_row = (
+                    await session.execute(
+                        select(Agent).where(
+                            Agent.id == CONFORMANCE_AGENT_ID
+                        )
+                    )
+                ).scalar_one_or_none()
+                assert stable_row is None
 
     asyncio.run(_run())
 

@@ -33,3 +33,4 @@ class Agent(Base):
 
     credential_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    system_operated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

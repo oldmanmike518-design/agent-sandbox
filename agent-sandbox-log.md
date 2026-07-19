@@ -923,3 +923,70 @@ Broad-launch gate status after this session: staging envelope ✅; retention sch
 - Confirmed `/Users/michaellanger/Projects/agent-sandbox` as the sole canonical workspace for Codex, Claude, Gemini, and other tools.
 - Verified the Codex Session 16 checkout under `Documents/Codex` was a clean duplicate and the `Documents/bug-bounties/agent-sandbox` checkout was obsolete. Automated removal was blocked by macOS permissions; the maintainer then moved both to Trash manually, and Codex verified both paths were absent. No changes needed combining.
 - Updated the tool handoff so the next session begins with PR #17 review/merge, controlled-seed recruitment, and the remaining operational gates—not another engineering audit.
+
+## 2026-07-19 — Session 18: PR #17 Merge and Adopted Distribution Strategy (Claude)
+
+### PR #17 merged
+
+With explicit maintainer authorization, PR #17 was marked ready and merged as `8faf95c`. The local canonical checkout is back on `main`, fast-forwarded, clean.
+
+### Strategy decision (Codex proposed, Claude refined, Codex concurred, maintainer adopted)
+
+The maintainer asked both tools how independently operating agents would ever find and use Agent Sandbox. The converged answer, now recorded as durable decisions in the handoff:
+
+- **Vision:** Agent Sandbox is the place builders send their agents to prove interoperability against systems they did not build — while remaining directly usable by the agents themselves. The first audience is builders bringing agents; "agents independently encountering the sandbox" is the eventual flywheel, not the entry strategy.
+- **The platform was the destination; distribution is the missing roads.** Roads, in leverage order: seed builders → always-on conformance partner → remote MCP server + official MCP Registry → five-minute framework recipes → searchable content and real integration reports → honest A2A implementation when warranted (never a renamed manifest).
+- **New product commitment:** a transparent `InteropConformanceAgent` (added to the command center's legitimate house agents) that gives every arriving agent a deterministic interop exchange and a machine-readable pass/fail report. It converts arrival into first-session value and produces publishable evidence without fabricating activity.
+- **MCP is sequenced before A2A** because its deployed client base is far larger today.
+- **Corpus qualification:** count on search indexing and links immediately; treat model-training inclusion as an uncontrollable long-term bonus.
+- **Seed-operations caution:** shared cloud egress IPs will trip the 5/IP/hour registration limit; watch for it during seeding before diagnosing churn.
+
+Handoff "Next Session" was rewritten to the adopted sequence; the command center's follow-ons were reordered to match. No code changes this session. Conformance-agent and MCP-adapter builds are ready to start on maintainer go; deploying any house agent requires maintainer authorization.
+
+## 2026-07-19 — Session 19: Verification Core Implemented and Locally Proven (Claude → Codex)
+
+Executed the maintainer-approved Revision 4 plan on local branch
+`agent/verification-core`. Claude completed Tasks 0–2 and stopped at its usage
+limit after writing an interruption handoff. Codex verified and amended the
+Task 2 migration correction, then completed Tasks 3–13. Nothing was pushed,
+no PR was opened, and production was not changed.
+
+### Delivered
+
+- Added verification configuration, durable models, migration 0004, stable
+  system-partner bootstrap, pinned fixtures, observation hooks, transactional
+  outbox/driver boundary, run lifecycle and budgets, pure evaluators,
+  verifier-incident capture, locked idempotent finalization, public reports
+  and badges, listing/admin controls, retention, privacy text, and the
+  `0.1-draft` Interop specification.
+- Added endpoint-driven PostgreSQL coverage for compliant and deficient
+  clients, concurrency, lifecycle, refund, outbox, publication, statistics,
+  privacy, bootstrap-conflict, and retention behavior.
+- Regenerated `openapi.json`.
+
+### Verification
+
+- Unit: **114 passed**.
+- Verification integration module: **23 passed**.
+- All integration tests: **36 passed**.
+- Ruff: clean.
+- Migration: imports and upgrades through `0004_verification_core`.
+
+### Corrections discovered during execution
+
+- Reconciled the migration’s slug uniqueness with the ORM’s single named
+  unique index.
+- Declared the SQLAlchemy asyncio extra required by the async PostgreSQL
+  engine.
+- Reused one event loop in the endpoint-driven integration module to avoid
+  crossing an async connection pool between separate loops.
+- Updated the existing migration test to expect revision 0004 and all new
+  tables.
+- Corrected admin route declarations so the existing `/admin` router prefix
+  is not duplicated.
+
+### Stop boundary
+
+Local implementation and verification are complete. Push, PR creation,
+production migration, conformance-agent bootstrap, and deployment remain
+explicitly unauthorized and undone.
