@@ -942,3 +942,51 @@ The maintainer asked both tools how independently operating agents would ever fi
 - **Seed-operations caution:** shared cloud egress IPs will trip the 5/IP/hour registration limit; watch for it during seeding before diagnosing churn.
 
 Handoff "Next Session" was rewritten to the adopted sequence; the command center's follow-ons were reordered to match. No code changes this session. Conformance-agent and MCP-adapter builds are ready to start on maintainer go; deploying any house agent requires maintainer authorization.
+
+## 2026-07-19 — Session 19: Verification Core Implemented and Locally Proven (Claude → Codex)
+
+Executed the maintainer-approved Revision 4 plan on local branch
+`agent/verification-core`. Claude completed Tasks 0–2 and stopped at its usage
+limit after writing an interruption handoff. Codex verified and amended the
+Task 2 migration correction, then completed Tasks 3–13. Nothing was pushed,
+no PR was opened, and production was not changed.
+
+### Delivered
+
+- Added verification configuration, durable models, migration 0004, stable
+  system-partner bootstrap, pinned fixtures, observation hooks, transactional
+  outbox/driver boundary, run lifecycle and budgets, pure evaluators,
+  verifier-incident capture, locked idempotent finalization, public reports
+  and badges, listing/admin controls, retention, privacy text, and the
+  `0.1-draft` Interop specification.
+- Added endpoint-driven PostgreSQL coverage for compliant and deficient
+  clients, concurrency, lifecycle, refund, outbox, publication, statistics,
+  privacy, bootstrap-conflict, and retention behavior.
+- Regenerated `openapi.json`.
+
+### Verification
+
+- Unit: **114 passed**.
+- Verification integration module: **23 passed**.
+- All integration tests: **36 passed**.
+- Ruff: clean.
+- Migration: imports and upgrades through `0004_verification_core`.
+
+### Corrections discovered during execution
+
+- Reconciled the migration’s slug uniqueness with the ORM’s single named
+  unique index.
+- Declared the SQLAlchemy asyncio extra required by the async PostgreSQL
+  engine.
+- Reused one event loop in the endpoint-driven integration module to avoid
+  crossing an async connection pool between separate loops.
+- Updated the existing migration test to expect revision 0004 and all new
+  tables.
+- Corrected admin route declarations so the existing `/admin` router prefix
+  is not duplicated.
+
+### Stop boundary
+
+Local implementation and verification are complete. Push, PR creation,
+production migration, conformance-agent bootstrap, and deployment remain
+explicitly unauthorized and undone.

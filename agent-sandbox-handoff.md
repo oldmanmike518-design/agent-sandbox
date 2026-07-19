@@ -2,14 +2,61 @@
 
 > Authoritative current state and execution order. Read this first. Historical detail is append-only in `agent-sandbox-log.md`.
 
-- **Last updated:** 2026-07-19 — Session 18 (PR #17 merged; agent-native distribution strategy adopted)
+- **Last updated:** 2026-07-19 — Session 19 (verification core built and locally verified)
 - **Canonical workspace:** `/Users/michaellanger/Projects/agent-sandbox`
 - **GitHub:** https://github.com/oldmanmike518-design/agent-sandbox
 - **Production:** https://agent-sandbox-xvx2.onrender.com
 - **Production code:** `main` baseline `1be6d96` (PRs #10–#15 merged)
-- **Repository state:** `main` is at `8faf95c` (PR #17 merged 2026-07-19). Uncommitted working-tree documentation awaiting maintainer review: Session 18 strategy updates (this handoff, `PROMOTION-COMMAND-CENTER.md`, `agent-sandbox-log.md`), `docs/VERIFICATION_PIVOT_DESIGN.md`, and `docs/plans/2026-07-19-verification-core.md`
+- **Repository state:** checkout is on local branch `agent/verification-core`; implementation through Task 12 is committed at `64eb48f`, with this Task 13 closeout commit at the branch tip. `main` remains at `8faf95c`.
 - **GitHub metadata:** interoperability description, production homepage, and discovery topics are live
 - **Public usage:** two clearly-labeled project-operated smoke agents and one broadcast (2026-07-19 end-to-end check); no outside builders yet
+
+## Session 19 Verification-Core Handoff (READ FIRST)
+
+Revision 4 of `docs/plans/2026-07-19-verification-core.md` is fully implemented locally. Claude completed Tasks 0–2 before its usage limit; Codex verified the inherited migration correction and completed Tasks 3–13. **Nothing was pushed, no PR was opened, no production bootstrap ran, and no deploy occurred. The Render production service remains on the pre-verification code.**
+
+### Built and committed
+
+- Reserved, visibly labeled `InteropConformanceAgent` identity and safe idempotent bootstrap.
+- Durable verification runs, observations, transactional outbox, immutable reports, and separate mutable publication state.
+- Authenticated `/verify` lifecycle; deterministic eight-check `rest-interop` evaluator; strict cursor-chain, overlap replay, edge recovery, duplicate suppression, cadence, and verifier-fault rules.
+- Public HTML/JSON reports, JSON/SVG badges, opt-in report index, owner listing controls, and admin delist/disable/dead-letter endpoints.
+- Revocation/deactivation aborts an open run transactionally; token rotation preserves it.
+- Window-scoped, idempotent verifier-fault budget refunds using a dedicated limiter transaction.
+- Draft normative specification at `docs/INTEROP_SPEC.md` (`0.1-draft`, never “certified”).
+- Observation retention purge and privacy disclosure.
+- Endpoint-driven PostgreSQL integration matrix covering the compliant flow, deficient clients, foreign traffic, lifecycle, concurrency, refunds, outbox recovery, takedown, sanitized output, statistics exclusion, bootstrap conflicts, and purge.
+
+### Local verification completed
+
+- Unit suite: **114 passed**.
+- New verification integration module: **23 passed**.
+- Complete integration directory: **36 passed**.
+- Ruff: **all checks passed**.
+- Alembic migration imports and upgrades successfully to `0004_verification_core`.
+- Checked-in OpenAPI snapshot regenerated.
+
+Disposable local PostgreSQL and Redis were started only for integration tests. No production data or credentials were used.
+
+### Deliberate deviations and corrections
+
+1. Corrected the Task 2 migration so `verification_reports.slug` has one named unique index matching the ORM.
+2. Added `SQLAlchemy[asyncio]` to requirements because the integration run proved the async engine’s required `greenlet` extra was undeclared.
+3. The integration module uses one persistent event loop because the application’s pooled async engine cannot safely cross separate `asyncio.run()` loops.
+4. Updated the pre-existing migration integration assertion from revision 0003 to 0004 and included all five verification tables.
+5. The normative max-length fixture is defined algebraically in the spec instead of printing 1,984 repeated `x` characters.
+6. The plan’s admin snippets repeated the router’s `/admin` prefix; implementation correctly declares routes relative to the existing prefixed router.
+
+### Still requires maintainer authorization
+
+1. Review the local branch and commits.
+2. Push `agent/verification-core` and open a PR.
+3. Let GitHub CI run and review the PR.
+4. Merge only after approval.
+5. Run migration 0004 and `scripts/bootstrap_conformance_agent.py` in production.
+6. Deploy and perform a production register → verify → report smoke test.
+
+No step above has been performed yet.
 
 ## Executive State
 
@@ -151,18 +198,13 @@ Optional, separately reviewed engineering work:
 
 ## Next Session — Start Here
 
-Follow the adopted distribution sequence (Session 18 decision; details in `PROMOTION-COMMAND-CENTER.md`):
-
-1. Work only in `/Users/michaellanger/Projects/agent-sandbox`; pull current `main`, then read this handoff and the latest log entry. (PR #17 was merged 2026-07-19; `main` is `8faf95c`.)
-2. Recruit 3–5 AutoGen, CrewAI, or LangGraph builders for the controlled seed, in parallel with step 3 — recruiting has lead time, and arrivals should meet the conformance experience.
-3. Design and build the transparent, always-on **`InteropConformanceAgent`**: responds to any new agent, runs a deterministic interop exchange (message round-trip, forward-poll cursor, duplicate-poll protection, malformed-input recovery), and returns a machine-readable pass/fail report a builder can link or badge. Deployment of the agent needs maintainer authorization.
-4. Build a remote MCP interface over the existing API (`register_agent`, `discover_agents`, `send_message`, `poll_inbox`, `get_stats`); submit to the official MCP Registry only once it genuinely implements the protocol.
-5. Publish five-minute AutoGen, CrewAI, LangGraph, and generic-MCP recipes; have outside builders repeat the proven register → discover → message → forward-poll → stats flow and capture framework, setup friction, latency, failures, and return behavior.
-6. Watch for shared-egress-IP registration throttling (5/IP/hour) during the seed — expected first friction point for cloud-hosted agents.
-7. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership (the staging load test is done).
-8. Produce searchable technical content and real integration reports; count on search indexing and links now, treat model-training inclusion as an uncontrollable long-term bonus.
-9. Add genuine A2A compatibility only when prepared to implement the protocol properly — never by renaming the existing manifest.
-10. Once all five broad-launch boxes are checked, execute the channel order in the command center: AutoGen → CrewAI → LangGraph → Reddit → Show HN. Measure real integrations, repeat use, cross-agent messages, server errors, and genuine voluntary tips — not vanity page views.
+1. Review the local `agent/verification-core` branch, its commit series, and the Session 19 log entry.
+2. With maintainer approval, push the branch and open a PR; wait for and review all CI checks.
+3. After separate merge/deploy authorization, migrate production, run the idempotent conformance-agent bootstrap, deploy, and execute the production verification smoke flow.
+4. Then recruit 3–5 AutoGen, CrewAI, or LangGraph builders and collect real reports and integration friction.
+5. In parallel, schedule retention, publish the dedicated contact, and record backup/alert ownership.
+6. Build the remote MCP interface and framework recipes after the verification core is proven with outside clients.
+7. Keep broad Reddit/Show HN promotion gated on the five checklist boxes above.
 
 ## Durable Decisions
 
