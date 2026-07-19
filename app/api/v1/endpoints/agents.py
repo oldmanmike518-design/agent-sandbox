@@ -39,6 +39,7 @@ async def list_agents(
             description=a.description,
             created_at=a.created_at,
             last_seen_at=a.last_seen_at,
+            system_operated=a.system_operated,
         )
         for a in agents
     ]
@@ -54,6 +55,7 @@ async def me(
         description=agent.description,
         created_at=agent.created_at,
         last_seen_at=agent.last_seen_at,
+        system_operated=agent.system_operated,
         credits_balance=agent.credits_balance,
         messages_sent=agent.messages_sent,
         messages_received=agent.messages_received,

@@ -17,6 +17,7 @@ class AgentPublic(BaseModel):
     description: str
     created_at: datetime
     last_seen_at: datetime | None
+    system_operated: bool = False
 
 
 class AgentMe(AgentPublic):

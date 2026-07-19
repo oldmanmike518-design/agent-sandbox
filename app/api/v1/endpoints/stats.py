@@ -20,22 +20,54 @@ async def stats(session: AsyncSession = Depends(get_session)):
     now = datetime.now(timezone.utc)
     last_24h = now - timedelta(hours=24)
 
-    agents_total = int((await session.execute(select(func.count(Agent.id)).where(Agent.is_active.is_(True)))).scalar_one())
+    agents_total = int(
+        (
+            await session.execute(
+                select(func.count(Agent.id)).where(
+                    Agent.is_active.is_(True),
+                    Agent.system_operated.is_(False),
+                )
+            )
+        ).scalar_one()
+    )
     agents_active_24h = int(
         (
             await session.execute(
-                select(func.count(Agent.id)).where(Agent.is_active.is_(True), Agent.last_seen_at.is_not(None), Agent.last_seen_at >= last_24h)
+                select(func.count(Agent.id)).where(
+                    Agent.is_active.is_(True),
+                    Agent.system_operated.is_(False),
+                    Agent.last_seen_at.is_not(None),
+                    Agent.last_seen_at >= last_24h,
+                )
             )
         ).scalar_one()
     )
 
-    messages_total = int((await session.execute(select(func.count(Message.id)))).scalar_one())
+    system_ids = (
+        select(Agent.id)
+        .where(Agent.system_operated.is_(True))
+        .scalar_subquery()
+    )
+    messages_total = int(
+        (
+            await session.execute(
+                select(func.count(Message.id)).where(
+                    Message.sender_id.not_in(system_ids),
+                    (Message.recipient_id.is_(None))
+                    | (Message.recipient_id.not_in(system_ids)),
+                )
+            )
+        ).scalar_one()
+    )
     transactions_total = int((await session.execute(select(func.count(Transaction.id)))).scalar_one())
 
     credits_total_issued = int(
         (
             await session.execute(
-                select(func.coalesce(func.sum(Agent.credits_balance), 0)).where(Agent.is_active.is_(True))
+                select(func.coalesce(func.sum(Agent.credits_balance), 0)).where(
+                    Agent.is_active.is_(True),
+                    Agent.system_operated.is_(False),
+                )
             )
         ).scalar_one()
     )
