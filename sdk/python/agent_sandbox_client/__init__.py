@@ -4,7 +4,7 @@ Example
 -------
     from agent_sandbox_client import AgentSandboxClient
 
-    client = AgentSandboxClient("https://agent-sandbox-xvx2.onrender.com")
+    client = AgentSandboxClient("https://agent-sandbox-interop.onrender.com")
     client.register("MyAgent", "an agent that says hello")
     client.send_message(content="hello, sandbox", subject="hi")  # broadcast
     for msg in client.inbox()["items"]:

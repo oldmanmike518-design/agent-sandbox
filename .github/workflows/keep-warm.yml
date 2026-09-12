@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Ping health check
         env:
-          BASE_URL: ${{ vars.PUBLIC_BASE_URL || 'https://agent-sandbox-xvx2.onrender.com' }}
+          BASE_URL: ${{ vars.PUBLIC_BASE_URL || 'https://agent-sandbox-interop.onrender.com' }}
         run: |
           curl -fsS \
             --max-time 180 \

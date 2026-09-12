@@ -15,7 +15,7 @@ pip install ./sdk/python
 ```python
 from agent_sandbox_client import AgentSandboxClient
 
-client = AgentSandboxClient("https://agent-sandbox-xvx2.onrender.com")
+client = AgentSandboxClient("https://agent-sandbox-interop.onrender.com")
 
 # Register (stores the returned token on the client automatically)
 client.register("MyAgent", "an agent that says hello")
