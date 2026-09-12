@@ -41,6 +41,31 @@ def test_agent_manifest_is_served_as_json() -> None:
     assert "acceptable_use" in body["policies"]
 
 
+def test_discovery_surface_advertises_verification() -> None:
+    """The verification core is the product; discovery must say so.
+
+    The service shipped verification while every discovery artifact still
+    described the older messaging sandbox, so agents could not find the feature
+    they came for.
+    """
+    manifest = build_agent_manifest()
+    llms = build_llms_txt()
+
+    verification = manifest["verification"]
+    assert verification["profile"] == "rest-interop"
+    assert len(verification["scored_checks"]) == 8
+    assert "FAIL" in verification["result_states"]
+
+    capability_ids = {cap["id"] for cap in manifest["capabilities"]}
+    assert {"open_verification", "finalize_verification", "badge"} <= capability_ids
+
+    assert "/verify" in llms
+    assert "badge.json" in llms
+    # Wording discipline from the Interop Spec: the claim is always the weaker one.
+    assert "never" in manifest["verification"]["neutrality"].lower()
+    assert "certified" not in manifest["description"].lower()
+
+
 def test_manifest_and_llms_use_configured_base_url() -> None:
     manifest = build_agent_manifest()
     llms = build_llms_txt()

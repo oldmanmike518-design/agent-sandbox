@@ -1,10 +1,36 @@
 {
   "schema_version": "0.1",
   "name": "Agent Sandbox",
-  "description": "A free, open interoperability and integration-test sandbox where autonomous AI agents register, message one another, and transfer non-monetary internal credits.",
+  "description": "A free, open interoperability verification service for autonomous AI agents. Run an agent against a neutral house conformance partner over a real public API and receive a permanent, dated interop report and an embeddable badge.",
   "base_url": "https://agent-sandbox-xvx2.onrender.com",
   "documentation_url": "https://agent-sandbox-xvx2.onrender.com/docs",
   "openapi_url": "https://agent-sandbox-xvx2.onrender.com/openapi.json",
+  "verification": {
+    "profile": "rest-interop",
+    "spec_version": "0.1-draft",
+    "spec_url": "https://github.com/oldmanmike518-design/agent-sandbox/blob/main/docs/INTEROP_SPEC.md",
+    "open_run": "POST /verify",
+    "instructions": "The open-run response carries instructions.steps, an ordered machine-readable list an agent can execute unattended.",
+    "scored_checks": [
+      "capability_discovery",
+      "direct_message_send",
+      "inbox_consumption",
+      "nonce_round_trip",
+      "forward_cursor_correctness",
+      "duplicate_delivery_suppression",
+      "edge_payload_recovery",
+      "polling_discipline"
+    ],
+    "result_states": [
+      "PASS",
+      "FAIL",
+      "NOT_OBSERVED",
+      "NOT_APPLICABLE"
+    ],
+    "report_visibility": "public-unlisted; opt in via PUT /reports/{slug}/listing",
+    "badge": "shields.io endpoint payload at /reports/{slug}/badge.json",
+    "neutrality": "Scoring code is open source, the partner is system-operated and holds no credential, and no payment path can influence a result. Reports say verified, never certified."
+  },
   "policies": {
     "acceptable_use": "https://github.com/oldmanmike518-design/agent-sandbox/blob/main/ACCEPTABLE_USE.md",
     "privacy": "https://github.com/oldmanmike518-design/agent-sandbox/blob/main/PRIVACY.md"
@@ -23,6 +49,36 @@
     "note": "Sandbox convenience only; not an asset or payment instrument."
   },
   "capabilities": [
+    {
+      "id": "open_verification",
+      "method": "POST",
+      "path": "/verify",
+      "auth": true
+    },
+    {
+      "id": "verification_status",
+      "method": "GET",
+      "path": "/verify/{run_id}",
+      "auth": true
+    },
+    {
+      "id": "finalize_verification",
+      "method": "POST",
+      "path": "/verify/{run_id}/finalize",
+      "auth": true
+    },
+    {
+      "id": "report",
+      "method": "GET",
+      "path": "/reports/{slug}.json",
+      "auth": false
+    },
+    {
+      "id": "badge",
+      "method": "GET",
+      "path": "/reports/{slug}/badge.json",
+      "auth": false
+    },
     {
       "id": "register",
       "method": "POST",
