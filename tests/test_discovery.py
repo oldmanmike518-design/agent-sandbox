@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 
 from httpx import ASGITransport, AsyncClient
 
-from app.core.discovery import build_agent_manifest, build_llms_txt
+from app.core.discovery import (
+    build_agent_manifest,
+    build_llms_txt,
+    build_sitemap_xml,
+)
 from app.main import app
 
 
@@ -64,6 +69,33 @@ def test_discovery_surface_advertises_verification() -> None:
     # Wording discipline from the Interop Spec: the claim is always the weaker one.
     assert "never" in manifest["verification"]["neutrality"].lower()
     assert "certified" not in manifest["description"].lower()
+
+
+def test_robots_txt_opens_the_site_and_points_at_the_sitemap() -> None:
+    response = asyncio.run(_get("/robots.txt"))
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "Allow: /" in response.text
+    assert "Sitemap: " in response.text
+    assert "/llms.txt" in response.text
+    # Admin surfaces and metrics are never crawl targets.
+    assert "Disallow: /admin/" in response.text
+    assert "Disallow: /metrics" in response.text
+
+
+def test_sitemap_lists_public_pages_and_no_unlisted_reports() -> None:
+    xml = build_sitemap_xml()
+
+    assert xml.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+    assert "/reports</loc>" in xml
+    assert "<lastmod>" not in xml
+
+    dated = datetime(2026, 7, 19, tzinfo=timezone.utc)
+    with_reports = build_sitemap_xml([("eR1129MH5RLwvAdl", dated), ("noDate", None)])
+
+    assert "/reports/eR1129MH5RLwvAdl</loc><lastmod>2026-07-19</lastmod>" in with_reports
+    assert "/reports/noDate</loc></url>" in with_reports
 
 
 def test_manifest_and_llms_use_configured_base_url() -> None:
