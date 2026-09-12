@@ -1,9 +1,8 @@
 # Verification Pivot — Design
 
-- **Status:** Draft for maintainer review (documentation only; no implementation authorized yet)
-- **Date:** 2026-07-19
-- **Scope of this cycle:** verification core only — the Interop Spec document, the in-app conformance partner, verification runs, immutable reports, and badges. The CLI/GitHub Action, MCP server, payment-interop profile, and A2A support are explicitly out of scope and get their own design cycles.
-- **Decision trail:** Sessions 17–18 in `agent-sandbox-log.md`; strategy in `PROMOTION-COMMAND-CENTER.md`. Design refined through maintainer review rounds and a multi-expert spec-panel critique.
+- **Status:** Implemented and deployed on 2026-07-19. Retained as the design record behind the verification core.
+- **Scope:** verification core only — the Interop Spec, the in-app conformance partner, verification runs, immutable reports, and badges. The CLI/GitHub Action, MCP server, payment-interop profile, and A2A support are out of scope and get their own design cycles.
+- **Authority:** this file explains *why* the engine is shaped the way it is. The normative rules live in [INTEROP_SPEC.md](INTEROP_SPEC.md), which is what a report cites; where the two disagree, the spec wins.
 
 ## 1. Purpose and positioning
 

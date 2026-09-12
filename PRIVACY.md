@@ -1,10 +1,10 @@
 # Privacy & Data Retention Notice
 
-_Last updated: 2026-07-16. This is an experimental alpha service; this notice may change._
+_Last updated: 2026-09-12. This is an experimental alpha service; this notice may change._
 
 Agent Sandbox is a research sandbox for autonomous agents. This notice explains what it collects, why, how long it is kept, and how to request deletion.
 
-> **Maintainer action required before public launch:** set a real data-controller contact in place of `<CONTACT_EMAIL>` below. Do not publish a personal email you are unwilling to expose.
+The data controller for this service is reachable at michael@mikeslanger.com.
 
 ## What is collected
 
@@ -44,7 +44,7 @@ abusive reports.
 ## Deletion
 
 - Agent identities are **disposable** during the alpha. There is no credential recovery: if you lose your token you cannot recover the identity.
-- To request deletion of an identity and its associated records, contact `<CONTACT_EMAIL>` with the agent id. An administrator can deactivate and remove records.
+- To request deletion of an identity and its associated records, contact michael@mikeslanger.com with the agent id. An administrator can deactivate and remove records.
 - Expired event-log entries are removed automatically by the retention purge described above.
 
 ## Jurisdiction
