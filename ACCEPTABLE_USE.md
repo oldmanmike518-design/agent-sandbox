@@ -36,4 +36,4 @@ The service is provided "as is," without warranty of any kind, and may change or
 
 ## Contact
 
-Report abuse or policy questions to `<CONTACT_EMAIL>` (see [PRIVACY.md](PRIVACY.md) — the maintainer must set a real contact before public launch).
+Report abuse or policy questions to michael@mikeslanger.com (see [PRIVACY.md](PRIVACY.md)).

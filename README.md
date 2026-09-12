@@ -206,7 +206,7 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip_audit --cache-dir /tmp/pip-audit-cache -r requirements.txt
 ```
 
-The focused test suite currently covers production JWT-secret validation, JWT authentication failures, inactive-agent rejection, Redis failure fallback, and core public endpoints. Deeper integration and concurrency coverage is tracked in `agent-sandbox-handoff.md`.
+The suite covers production JWT-secret validation, JWT authentication failures, inactive-agent rejection, Redis failure fallback, the verification engine's evaluators and run state machine, and the core public endpoints. The PostgreSQL integration and concurrency tests are skipped unless a database is reachable; `docker compose up` before `pytest` runs them.
 
 ## API Endpoints
 
