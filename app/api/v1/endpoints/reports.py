@@ -295,4 +295,5 @@ async def report_page(
     report, publication = await _report_with_publication(session, slug)
     if publication.disabled:
         return HTMLResponse(TAKEDOWN_HTML, status_code=410)
-    return HTMLResponse(render_report_html(report))
+    headers = None if publication.listed else {"X-Robots-Tag": "noindex"}
+    return HTMLResponse(render_report_html(report), headers=headers)

@@ -3,16 +3,26 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from sqlalchemy import select
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.router import router as api_router
 from app.core.config import settings
-from app.core.discovery import build_agent_manifest, build_llms_txt
+from app.core.discovery import (
+    build_agent_manifest,
+    build_llms_txt,
+    build_robots_txt,
+    build_sitemap_xml,
+)
+from app.models.verification import (
+    VerificationReport,
+    VerificationReportPublication,
+)
 from app.core.logging import configure_logging
 from app.core.middleware import (
     MaxBodySizeMiddleware,
@@ -89,6 +99,32 @@ def create_app() -> FastAPI:
     @app.get("/.well-known/agent-manifest.json", include_in_schema=False)
     async def agent_manifest():
         return build_agent_manifest()
+
+    @app.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def robots_txt():
+        return build_robots_txt()
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def sitemap_xml(session=Depends(get_session)):
+        rows = (
+            await session.execute(
+                select(VerificationReport.slug, VerificationReport.verified_at)
+                .join(
+                    VerificationReportPublication,
+                    VerificationReportPublication.report_id == VerificationReport.id,
+                )
+                .where(
+                    VerificationReportPublication.listed.is_(True),
+                    VerificationReportPublication.disabled.is_(False),
+                )
+                .order_by(VerificationReport.verified_at.desc())
+                .limit(1000)
+            )
+        ).all()
+        return Response(
+            content=build_sitemap_xml(rows),
+            media_type="application/xml",
+        )
 
     @app.get("/readyz")
     async def readyz(session=Depends(get_session)):

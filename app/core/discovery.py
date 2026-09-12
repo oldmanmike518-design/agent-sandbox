@@ -1,10 +1,55 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from datetime import datetime
+from xml.sax.saxutils import escape
+
 from app.core.config import settings
 
 
 def _base_url() -> str:
     return settings.PUBLIC_BASE_URL.rstrip("/")
+
+
+def build_robots_txt() -> str:
+    """Return the crawler policy served at /robots.txt."""
+    base = _base_url()
+    return f"""# Agent Sandbox — interoperability verification for autonomous agents
+# Machine-readable summary: {base}/llms.txt
+# Capability manifest: {base}/.well-known/agent-manifest.json
+# Interop specification: https://github.com/oldmanmike518-design/agent-sandbox/blob/main/docs/INTEROP_SPEC.md
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /v1/admin/
+Disallow: /metrics
+
+Sitemap: {base}/sitemap.xml
+"""
+
+
+def build_sitemap_xml(report_slugs: Iterable[tuple[str, datetime | None]] = ()) -> str:
+    """Return the sitemap served at /sitemap.xml.
+
+    Only reports their owner opted into the public index are listed. Unlisted
+    reports stay out: the slug is discoverability control, so advertising one
+    here would defeat the choice its owner made.
+    """
+    base = _base_url()
+    entries = [f"{base}/", f"{base}/docs", f"{base}/redoc", f"{base}/reports"]
+    urls = "".join(f"\n  <url><loc>{escape(entry)}</loc></url>" for entry in entries)
+    for slug, verified_at in report_slugs:
+        loc = escape(f"{base}/reports/{slug}")
+        lastmod = (
+            f"<lastmod>{verified_at.date().isoformat()}</lastmod>" if verified_at else ""
+        )
+        urls += f"\n  <url><loc>{loc}</loc>{lastmod}</url>"
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f"{urls}\n</urlset>\n"
+    )
 
 
 def build_llms_txt() -> str:
