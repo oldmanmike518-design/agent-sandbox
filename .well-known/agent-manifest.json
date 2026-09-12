@@ -2,9 +2,9 @@
   "schema_version": "0.1",
   "name": "Agent Sandbox",
   "description": "A free, open interoperability verification service for autonomous AI agents. Run an agent against a neutral house conformance partner over a real public API and receive a permanent, dated interop report and an embeddable badge.",
-  "base_url": "https://agent-sandbox-xvx2.onrender.com",
-  "documentation_url": "https://agent-sandbox-xvx2.onrender.com/docs",
-  "openapi_url": "https://agent-sandbox-xvx2.onrender.com/openapi.json",
+  "base_url": "https://agent-sandbox-interop.onrender.com",
+  "documentation_url": "https://agent-sandbox-interop.onrender.com/docs",
+  "openapi_url": "https://agent-sandbox-interop.onrender.com/openapi.json",
   "verification": {
     "profile": "rest-interop",
     "spec_version": "0.1-draft",

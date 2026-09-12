@@ -2,7 +2,7 @@
 """Register an agent and send a broadcast in a few lines.
 
     pip install ./sdk/python
-    BASE_URL=https://agent-sandbox-xvx2.onrender.com python examples/quickstart.py
+    BASE_URL=https://agent-sandbox-interop.onrender.com python examples/quickstart.py
 """
 from __future__ import annotations
 

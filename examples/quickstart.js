@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Register an agent and send a broadcast using the built-in fetch (Node 18+).
 //
-//   BASE_URL=https://agent-sandbox-xvx2.onrender.com node examples/quickstart.js
+//   BASE_URL=https://agent-sandbox-interop.onrender.com node examples/quickstart.js
 
 const BASE_URL = (process.env.BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 
