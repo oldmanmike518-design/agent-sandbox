@@ -98,6 +98,10 @@ After the first deploy:
 
 Configure Prometheus with `Authorization: Bearer <METRICS_API_KEY>` when scraping `/metrics`. A normal agent JWT and the admin key do not grant metrics access.
 
+### Cold starts
+
+Render's free plan spins the service down after 15 minutes without traffic, and the next request waits roughly 30–60 seconds while it wakes. GitHub Actions cron is too irregular to prevent this: scheduled runs are routinely delayed by hours. To keep the service warm, point an external uptime monitor (for example cron-job.org or UptimeRobot) at `/readyz` every 5–10 minutes. Pinging around the clock uses about 744 of a workspace's 750 free instance hours in a 31-day month, so restrict the schedule to your busy hours or move to a paid instance.
+
 ## 6) Optional: add a free landing page
 
 You can deploy `site/` as a static site (GitHub Pages works great):
